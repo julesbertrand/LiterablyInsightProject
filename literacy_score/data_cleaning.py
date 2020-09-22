@@ -18,6 +18,18 @@ class data():
         return data_table
 
 
+    def text_cleaning(self, col_names = []):
+        if not isinstance(col_names, list):
+            raise TypeError("col_names should be a list")
+
+        def remove_punctuation(text):
+            text = text.translate(str.maketrans(string.punctuation, ' ' * len(string.punctuation)))
+            return " ".join(text.split())
+
+        for name in col_names:
+            self.data_table[name] = self.data_table[name].apply(lambda x: remove_punctuation(x))
+            self.data_table[name] = self.data_table[name].apply(lambda x: x.lower()) 
+            
 if __name__ == "__main__":
     data_table = pd.read_csv(os.getcwd() + "/data/data.csv", sep=",")
     data = data(data_table)
