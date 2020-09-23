@@ -1,1 +1,1 @@
-from .literacy_score import *
+from .data_cleaning import *
