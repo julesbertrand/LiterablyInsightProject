@@ -1,1 +1,1 @@
-from .data_cleaning import *
+from literacy_score.data_cleaning import Dataset
