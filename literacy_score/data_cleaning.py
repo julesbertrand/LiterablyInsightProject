@@ -105,7 +105,7 @@ class Dataset():
             new_col_name = col_name_1.split("_")[0] + "_" + col_name_2.split("_")[0]
         temp = self.df.apply(lambda x: compare_text(x[col_name_1], x[col_name_2]), axis=1)
         self.df[[new_col_name + "_wc", new_col_name + "_errors"]] = pd.DataFrame(temp.to_list(), index = self.df.index)
-        self.df[new_col_name + "_wcpm"] = self.df[new_col_name + "_wc"].div(self.df["scored_duration"] / 60, fill_value = 0)            
+        self.df[new_col_name + "_wcpm"] = self.df[new_col_name + "_wc"].div(self.df["scored_duration"] / 60, fill_value = 0)   
 
 if __name__ == "__main__":
     pass
