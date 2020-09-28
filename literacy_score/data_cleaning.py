@@ -25,8 +25,12 @@ class Dataset():
 
     def get_df(self):
         return self.df
+    
+    def save_df(self, path):
+        self.df.to_csv(path + "processed_wcpm.csv", index=False)
 
     def change_size_data(self, size='all'):
+        """ work with only a part of data for tests purposes"""
         if size == 'all':
             self.df = self.processed_df.copy()
         elif isinstance(size, int):
@@ -54,9 +58,9 @@ class Dataset():
             asr_transcript = asr_transcript.str.translate(translater)
             asr_transcript = asr_transcript.str.split().str.join(' ')
         df = self.df_raw.copy()
-        df['prompt'] = prompt
-        df['human_transcript'] = human_transcript
-        df['asr_transcript'] = asr_transcript
+        df['prompt'] = prompt.fillna(" ")
+        df['human_transcript'] = human_transcript.fillna(" ")
+        df['asr_transcript'] = asr_transcript.fillna(" ")
         return df
 
     def count_words_in_transcript(self, col_names = []):
@@ -70,7 +74,7 @@ class Dataset():
             raise TypeError("col_name_1 and col_names_2 should be strings from data columns headers")
 
         def compare_text(a, b, split_car = " "):
-            # comparing string a and b split by split_care, default split by word
+            """ comparing string a and b split by split_care, default split by word"""
             differ_list = difflib.Differ().compare(str(a).split(split_car), str(b).split(split_car))
             differ_list = list(differ_list)
             to_be_removed = differ_list[-1][0]
@@ -88,16 +92,20 @@ class Dataset():
                 if word[0] == " ":
                     counter += 1  # + 1 word correct 
                 elif i < n - 1:  # keep track of errors and classify them later
-                    skip_next = (word[0] == "+" and differ_list[i + 1][0] == "-") or (word[0] == "-" and differ_list[i + 1][0] == "+")
-                    if skip_next:
-                        error_list += [(word, differ_list[i + 1])]
-            print(error_list)
+                    plus_minus = (word[0] == "+" and differ_list[i + 1][0] == "-")
+                    minus_plus = (word[0] == "-" and differ_list[i + 1][0] == "+")
+                    skip_next = plus_minus or minus_plus
+                    if plus_minus:  # added word always first
+                        error_list += [(word.replace("+ ", ""), differ_list[i + 1].replace("- ", ""))]
+                    elif minus_plus:
+                        error_list += [(differ_list[i + 1].replace("+ ", ""), word.replace("- ", ""))]
             return counter, error_list
         
         if new_col_name == "":
             new_col_name = col_name_1.split("_")[0] + "_" + col_name_2.split("_")[0]
         temp = self.df.apply(lambda x: compare_text(x[col_name_1], x[col_name_2]), axis=1)
         self.df[[new_col_name + "_wc", new_col_name + "_errors"]] = pd.DataFrame(temp.to_list(), index = self.df.index)
+        self.df[new_col_name + "_wcpm"] = self.df[new_col_name + "_wc"].div(self.df["scored_duration"] / 60, fill_value = 0)            
 
 if __name__ == "__main__":
     pass
