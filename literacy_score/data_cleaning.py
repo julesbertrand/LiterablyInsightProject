@@ -154,14 +154,16 @@ class Dataset():
             save_to_file(labeled_errors, path, replace=False)
         return labeled_errors
     
-        def print_row(self, index = -1, col_names):
-            if index != -1:
-                for col in ['prompt', 'human_transcript', 'asr_transcript', 'prompt_human_differ_list', 'prompt_human_errors', 'prompt_asr_errors', 'prompt_asr_differ_list']:
-                    print(col + ":\n")
-                    print(self.df[col].iloc[index])
-                    print("\n")
-            else:
-                print(self.df[col_names])
+    def print_row(self, col_names=[], index = -1):
+        if len(col_names) == 0:
+            col_names = self.df.columns
+        if index != -1:
+            for col in col_names:
+                print(col + ":\n")
+                print(self.df[col].iloc[index])
+                print("\n")
+        else:
+            print(self.df[col_names])
 
 if __name__ == "__main__":
     pass
