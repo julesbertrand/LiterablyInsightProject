@@ -72,17 +72,32 @@ class Dataset():
         def compare_text(a, b, split_car = " "):
             # comparing string a and b split by split_care, default split by word
             differ_list = difflib.Differ().compare(str(a).split(split_car), str(b).split(split_car))
+            differ_list = list(differ_list)
+            to_be_removed = differ_list[-1][0]
+            if to_be_removed != " ":
+                while differ_list[-1][0] == to_be_removed and len(differ_list) >= 1:
+                    differ_list.pop()
             counter = 0
-            for word in differ_list:
+            error_list = []
+            skip_next = False
+            n = len(differ_list)
+            for i, word in enumerate(differ_list):
+                if skip_next:
+                    skip_next = False
+                    pass  # when the word has already been added to the eror list
                 if word[0] == " ":
-                    counter += 1
-            return counter
+                    counter += 1  # + 1 word correct 
+                elif i < n - 1:  # keep track of errors and classify them later
+                    skip_next = (word[0] == "+" and differ_list[i + 1][0] == "-") or (word[0] == "-" and differ_list[i + 1][0] == "+")
+                    if skip_next:
+                        error_list += [(word, differ_list[i + 1])]
+            print(error_list)
+            return counter, error_list
         
         if new_col_name == "":
-            new_col_name = col_name_1.split("_")[0] + "_" + col_name_2.split("_")[0] + "_wc"
-        self.df[new_col_name] = self.df.apply(lambda x: compare_text(x[col_name_1], x[col_name_2]), axis=1)
-
-
+            new_col_name = col_name_1.split("_")[0] + "_" + col_name_2.split("_")[0]
+        temp = self.df.apply(lambda x: compare_text(x[col_name_1], x[col_name_2]), axis=1)
+        self.df[[new_col_name + "_wc", new_col_name + "_errors"]] = pd.DataFrame(temp.to_list(), index = self.df.index)
 
 if __name__ == "__main__":
     pass
