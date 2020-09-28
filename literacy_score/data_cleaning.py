@@ -5,6 +5,7 @@ import difflib  # string comparison
 import os
 
 
+
 class Dataset():
     def __init__(self, file_path, lowercase=True, punctuation_free=True, asr_string_recomposition=False):
         self.file_path = file_path
@@ -77,12 +78,14 @@ class Dataset():
             """ comparing string a and b split by split_care, default split by word"""
             differ_list = difflib.Differ().compare(str(a).split(split_car), str(b).split(split_car))
             differ_list = list(differ_list)
+            
             to_be_removed = differ_list[-1][0]
             if to_be_removed != " ":
                 while differ_list[-1][0] == to_be_removed and len(differ_list) >= 1:
                     differ_list.pop()
+                    
             counter = 0
-            error_list = []
+            error_dict = {'col_1': [], 'col_2': []}
             skip_next = False
             n = len(differ_list)
             for i, word in enumerate(differ_list):
@@ -91,21 +94,56 @@ class Dataset():
                     pass  # when the word has already been added to the eror list
                 if word[0] == " ":
                     counter += 1  # + 1 word correct 
-                elif i < n - 1:  # keep track of errors and classify them later
-                    plus_minus = (word[0] == "+" and differ_list[i + 1][0] == "-")
-                    minus_plus = (word[0] == "-" and differ_list[i + 1][0] == "+")
+                elif i < n - 2:  # keep track of errors and classify them later
+                    j = 1
+                    while differ_list[i + j][0] == "?":
+                        j += 1
+                    plus_minus = (word[0] == "+" and differ_list[i + j][0] == "-")
+                    minus_plus = (word[0] == "-" and differ_list[i + j][0] == "+")
                     skip_next = plus_minus or minus_plus
                     if plus_minus:  # added word always first
-                        error_list += [(word.replace("+ ", ""), differ_list[i + 1].replace("- ", ""))]
+                        error_dict['col_1'] += [differ_list[i + j]]
+                        error_dict['col_2'] += [word]
                     elif minus_plus:
-                        error_list += [(differ_list[i + 1].replace("+ ", ""), word.replace("- ", ""))]
-            return counter, error_list
+                        error_dict['col_1'] += [word] #.replace("- ", ""))]
+                        error_dict['col_2'] += [differ_list[i + j]]
+            return counter, error_dict, differ_list
         
         if new_col_name == "":
             new_col_name = col_name_1.split("_")[0] + "_" + col_name_2.split("_")[0]
         temp = self.df.apply(lambda x: compare_text(x[col_name_1], x[col_name_2]), axis=1)
-        self.df[[new_col_name + "_wc", new_col_name + "_errors"]] = pd.DataFrame(temp.to_list(), index = self.df.index)
-        self.df[new_col_name + "_wcpm"] = self.df[new_col_name + "_wc"].div(self.df["scored_duration"] / 60, fill_value = 0)   
+        self.df[[new_col_name + "_wc", new_col_name + "_errors", new_col_name + "_differ_list"]] = pd.DataFrame(temp.to_list(), index = self.df.index)
+        self.df[new_col_name + "_wcpm"] = self.df[new_col_name + "_wc"].div(self.df["scored_duration"] / 60, fill_value = 0)
+    
+    def get_labelized_data(self, save = False):
+        words = []
+        labels = []
+        for i in range(len(self.df.index)):
+            prompt_words_asr = self.df['prompt_asr_errors'].iloc[i]['col_1']
+            if len(prompt_words_asr) == 0:
+                pass
+            prompt_words_human = self.df['prompt_human_errors'].iloc[i]['col_1']
+            asr_errors = self.df['prompt_asr_errors'].iloc[i]['col_2']
+            for j, word in enumerate(prompt_words_asr):
+                words.append([word.replace("+ ", "").replace("- ", ""), asr_errors[j].replace("+ ", "").replace("- ", "")])
+                if word in prompt_words_human:  # if the error was detected by the human --> mistake by student
+                    labels.append(False)
+                else:
+                    labels.append(True)  # mistake by asr
+        labeled_errors = pd.DataFrame({'words': words, 'labels': labels})
+        if save:
+            path = "./data/labeled_data.csv"
+            save_to_file(labeled_errors, path, replace=False)
+        return labeled_errors
+    
+        def print_row(self, index = -1, col_names):
+            if index != -1:
+                for col in ['prompt', 'human_transcript', 'asr_transcript', 'prompt_human_differ_list', 'prompt_human_errors', 'prompt_asr_errors', 'prompt_asr_differ_list']:
+                    print(col + ":\n")
+                    print(self.df[col].iloc[index])
+                    print("\n")
+            else:
+                print(self.df[col_names])
 
 if __name__ == "__main__":
     pass
