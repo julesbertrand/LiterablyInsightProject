@@ -3,8 +3,26 @@ import ast  # for literal evaluation of ASR data string --> list of dict
 import string  # for 
 import difflib  # string comparison
 import os
+import joblib
 
 
+def save_to_file(file, path, replace=False):
+    path, file_name = path.rsplit("/", 1)
+    path += "/"
+    file_name, extension = file_name.split(".")
+    if replace:
+        try:
+            os.remove(file_name)
+        except OSError: pass
+    else:
+        i = 0
+        while os.path.exists(path + ".".join((file_name + '_{:d}'.format(i), extension))):
+            i += 1
+        file_name += '_{:d}'.format(i)
+    if extension == 'csv':
+        file.to_csv(path + ".".join((file_name, extension)), index=False, sep=';', encoding='utf-8')
+    else:
+        joblib.dump(file, path + ".".join((file_name, extension)), compress = 1)
 
 class Dataset():
     def __init__(self, file_path, lowercase=True, punctuation_free=True, asr_string_recomposition=False):
@@ -28,7 +46,7 @@ class Dataset():
         return self.df
     
     def save_df(self, path):
-        self.df.to_csv(path + "processed_wcpm.csv", index=False)
+        save_file(self.df, path)
 
     def change_size_data(self, size='all'):
         """ work with only a part of data for tests purposes"""
