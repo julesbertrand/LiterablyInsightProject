@@ -4,6 +4,8 @@ import string  # for
 import difflib  # string comparison
 import os
 import joblib
+import re
+from num2words import num2words
 
 
 def save_to_file(file, path, replace=False):
@@ -43,7 +45,12 @@ class Dataset():
             raise ValueError(path)
         return pd.read_csv(path)
     
-    def __preprocess_data__(self, lowercase=True, punctuation_free=True, asr_string_recomposition=False):
+    def __preprocess_data__(self,
+                            lowercase=True,
+                            punctuation_free=True,
+                            asr_string_recomposition=False,
+                            convert_num2words=True
+                           ):
         prompt = self.df_raw['prompt']
         human_transcript = self.df_raw['human_transcript']
         asr_transcript = self.df_raw['asr_transcript']
@@ -56,6 +63,8 @@ class Dataset():
             prompt = prompt.str.lower()
             human_transcript = human_transcript.str.lower()
             asr_transcript = asr_transcript.str.lower()
+        if convert_num2words:
+            prompt = prompt.apply(lambda x: re.sub('\d+', lambda y: num2words(y.group()), x))
         if punctuation_free:
             # remove punctuation
             translater = str.maketrans(string.punctuation, ' ' * len(string.punctuation))
@@ -63,7 +72,7 @@ class Dataset():
             human_transcript = human_transcript.str.translate(translater)
             human_transcript = human_transcript.str.split().str.join(' ')
             asr_transcript = asr_transcript.str.translate(translater)
-            asr_transcript = asr_transcript.str.split().str.join(' ')
+            asr_transcript = asr_transcript.str.split().str.join(' ')            
         df = self.df_raw.copy()
         df['prompt'] = prompt.fillna(" ")
         df['human_transcript'] = human_transcript.fillna(" ")
