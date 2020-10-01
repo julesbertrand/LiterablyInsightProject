@@ -10,9 +10,11 @@ import re  # df.apply regex
 from num2words import num2words
 
 
-def save_to_file(file, path, replace=False):
-    path, file_name = path.rsplit("/", 1)
-    path += "/"
+def save_file(file, path, file_name, replace=False):
+    if path[-1] != "/":
+        path += "/"
+    if not os.path.exists(path)::
+        raise FileNotFoundError
     file_name, extension = file_name.split(".")
     if replace:
         try:
@@ -26,7 +28,9 @@ def save_to_file(file, path, replace=False):
     if extension == 'csv':
         file.to_csv(path + ".".join((file_name, extension)), index=False, sep=';', encoding='utf-8')
     else:
-        pickle.dump(file, path + ".".join((file_name, extension)), compress = 1)
+        with open(path + file_name + '.pkl', 'wb') as pkl_file:
+            pickle.dump(file, pkl_file)
+
 
 
 class Dataset():
