@@ -1,10 +1,12 @@
+import numpy as np
 import pandas as pd  # data management format
 import ast  # for literal evaluation of ASR data string --> list of dict
-import string  # for 
+import string
 import difflib  # string comparison
 import os
-import pickle
-import re
+import jellyfish  # for phonetic transcriptions
+import pickle  # save model 
+import re  # df.apply regex
 from num2words import num2words
 
 
