@@ -3,7 +3,7 @@ import ast  # for literal evaluation of ASR data string --> list of dict
 import string  # for 
 import difflib  # string comparison
 import os
-import joblib
+import pickle
 import re
 from num2words import num2words
 
@@ -24,17 +24,18 @@ def save_to_file(file, path, replace=False):
     if extension == 'csv':
         file.to_csv(path + ".".join((file_name, extension)), index=False, sep=';', encoding='utf-8')
     else:
-        joblib.dump(file, path + ".".join((file_name, extension)), compress = 1)
+        pickle.dump(file, path + ".".join((file_name, extension)), compress = 1)
 
 
 class Dataset():
-    def __init__(self, file_path, lowercase=True, punctuation_free=True, asr_string_recomposition=False):
+    def __init__(self, file_path, lowercase=True, punctuation_free=True, asr_string_recomposition=False, convert_num2words=True):
         self.file_path = file_path
         self.df_raw = self.__read_data__()
         self.processed_df = self.__preprocess_data__(
             lowercase=lowercase,
             punctuation_free=punctuation_free,
-            asr_string_recomposition=asr_string_recomposition
+            asr_string_recomposition=asr_string_recomposition,
+            convert_num2words = convert_num2words
             )
         self.df = self.processed_df.copy()
 
@@ -64,7 +65,11 @@ class Dataset():
             human_transcript = human_transcript.str.lower()
             asr_transcript = asr_transcript.str.lower()
         if convert_num2words:
-            prompt = prompt.apply(lambda x: re.sub('\d+', lambda y: num2words(y.group()), x))
+            def converter(s):
+                if len(s) == 4:
+                    return re.sub('\d+', lambda y: num2words(y.group(), to='year'), s)
+                return re.sub('\d+', lambda y: num2words(y.group()), s)
+            prompt = prompt.apply(lambda x: re.sub('\d+', lambda y: converter(y.group()), x))
         if punctuation_free:
             # remove punctuation
             translater = str.maketrans(string.punctuation, ' ' * len(string.punctuation))
