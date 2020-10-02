@@ -1,25 +1,27 @@
-import numpy as np
-import pandas as pd
 import os
 import errno
+import logging
+
+import numpy as np
+import pandas as pd
 
 import joblib
 
 import ast  # preprocessing ast to litteral
 import re  # preprocessing
 from num2words import num2words  # preprocessing 
-import string # punctuation in preprocessing
+import string # preprocessing punctuation
 
 from grading_utils import open_file, save_file, compare_text, get_errors_dict, avg_length_of_words
 
 # Logging
-# logger = logging.getLogger()
-# handler = logging.StreamHandler()
-# formatter = logging.Formatter(
-#         '%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-# handler.setFormatter(formatter)
-# logger.addHandler(handler)
-# logger.setLevel(logging.ERROR)
+logger = logging.getLogger()
+handler = logging.StreamHandler()
+formatter = logging.Formatter(
+        '%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 def grade_wcpm(df):
     data = DataGrader(df)
@@ -40,7 +42,9 @@ class DataGrader():
         self.model_name = "random_forest"
 
     def __load_model(self, model_name):
-        with open("./literacy_score/models/" + model_name, 'rb') as f:
+        model_path = "./literacy_score/models/" + model_name
+        logging.info("Loading model from %s", model_path)
+        with open(model_path, 'rb') as f:
             model = joblib.load(f)  
         return model
 
@@ -56,11 +60,14 @@ class DataGrader():
         if self.model_name == model_name:
             pass
         else:
-            self.model_name = model_name
             if model_name == "random_forest":
                 self.model = self.__load_model('rf_hypertuned.pkl')
+                self.model_name = model_name
             elif model_name == "xgboost":
                 self.model = self.__load_model('xgb_hypertuned.pkl')
+                self.model_name = model_name
+            else:
+                logging.error("No such model is available: %s. please choose between RF and XGB", model_name)
 
     def grade_wcpm(self):
         self.preprocess_data(lowercase = True,
@@ -84,13 +91,16 @@ class DataGrader():
         asr_transcript = self.data[self.asr_col]
         if asr_string_recomposition:
             # if data is string-ed list of dict, get list of dict
+            logging.info("Recomposing ASR string from dict")
             asr_transcript = asr_transcript.apply(lambda x: ast.literal_eval(x))
             asr_transcript = asr_transcript.apply(lambda x: " ".join([e['text'] for e in x]))
         if lowercase:
             # convert text to lowercase
+            logging.info("Converting data to lowercase")
             prompt = prompt.str.lower()
             asr_transcript = asr_transcript.str.lower()
         if convert_num2words:
+            logging.info("Converting numbers to words")
             def converter(s):
                 if len(s) == 4:
                     return re.sub('\d+', lambda y: num2words(y.group(), to='year'), s)
@@ -98,6 +108,7 @@ class DataGrader():
             prompt = prompt.apply(lambda x: re.sub('\d+', lambda y: converter(y.group()), x))
         if punctuation_free:
             # remove punctuation
+            logging.info("Removing punctuation")
             translater = str.maketrans(string.punctuation, ' ' * len(string.punctuation))
             prompt = prompt.str.translate(translater)
             prompt = prompt.str.split().str.join(' ') 
@@ -120,6 +131,7 @@ class DataGrader():
         """ apply _compare_text to two self.df columns 
         and creates a new column in df for the number of common words
         """
+        logging.info("Comparing %s to %s", col_1, col_2)
         if not (isinstance(col_1, str) and isinstance(col_2, str)):
             raise TypeError("col_1 and col_2 should be strings from data columns headers")
         temp = self.data.apply(lambda x: compare_text(x[col_1], x[col_2]), axis=1)
@@ -130,10 +142,13 @@ class DataGrader():
             self.data['differ_list'] = temp
 
     def compute_features(self, inplace = False):
+        """ compute differ list with difflib, then count words and add feautres for wcpm estimation
+        """
         diff_list = self.compute_differ_list(col_1 = self.prompt_col,
                                             col_2 = self.asr_col,
                                             inplace = False
                                             )
+        logging.info("Calculating features")
         temp = diff_list.apply(lambda x: get_errors_dict(x))
         temp = pd.DataFrame(temp.to_list(), columns = ["correct_words",
                                                         "added_words",
@@ -152,10 +167,13 @@ class DataGrader():
             self.features = temp
 
     def estimate_wcpm(self, inplace = False, model = None):
+        """ take current model and estimate the wcpm with it
+        """
         if model is None:
             model = self.model
         else:
             self.set_model(model_name = model)
+        logging.info("Estimating wcpm")
         self.features = self.scaler.transform(self.features)
         wc = self.model.predict(self.features)
         wc = pd.Series(wc, name = 'wc_estimations')
