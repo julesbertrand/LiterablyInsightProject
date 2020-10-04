@@ -12,9 +12,9 @@ import re  # preprocessing
 from num2words import num2words  # preprocessing 
 import string # preprocessing punctuation
 
-from literacy_score.grading_utils import open_file, save_file,
+from literacy_score.grading_utils import open_file, save_file
 from literacy_score.grading_utils import compare_text, get_errors_dict, avg_length_of_words, Dataset
-from literacy_score.config import DATA_PATH, MODEL_PATH, DEFAULT_MODEL
+from literacy_score.config import DATA_PATH, MODELS_PATH, DEFAULT_MODEL, PREPROCESSING_STEPS
 
 # Logging
 logger = logging.getLogger()
@@ -42,11 +42,12 @@ class DataGrader():
                             )
 
         self.scaler = self.__load_model('standard_scaler.joblib')
+        print('hey')
         self.model = self.__load_model('rf_hypertuned.pkl')
         self.model_name = "RF"
 
     def __load_model(self, model_name):
-        model_path = MODEL_PATH + model_name
+        model_path = MODELS_PATH + model_name
         logging.info("Loading model from %s", model_path)
         with open(model_path, 'rb') as f:
             model = joblib.load(f)  
@@ -66,13 +67,10 @@ class DataGrader():
                 logging.error("No such model is available: %s in %s. please choose between 'RF' and 'XGB'", model_name, MODEL_PATH)
 
     def grade_wcpm(self):
-        self.data.preprocess_data(lowercase = True,
-                            punctuation_free = True,
-                            convert_num2words = True,
-                            asr_string_recomposition = False,
+        self.data.preprocess_data(**PREPROCESSING_STEPS,
                             inplace = True
                             )
-        self.feaures = self.data.compute_features(inplace = False)  # created df self.features
+        self.features = self.data.compute_features(inplace = False)  # created df self.features
         self.estimate_wcpm(inplace = True)
         return self.data.get_data()
 
@@ -87,7 +85,7 @@ class DataGrader():
         self.features = self.scaler.transform(self.features)
         wc = self.model.predict(self.features)
         wc = pd.Series(wc, name = 'wc_estimations')
-        wcpm = wc.div(self.data[self.duration_col] /60, fill_value = 0).apply(lambda x: round(x))
+        wcpm = wc.div(self.data.data[self.duration_col] /60, fill_value = 0).apply(lambda x: round(x))
         wcpm.rename('wcpm_estimations', inplace = True)
         if not inplace:
             return wcpm
@@ -99,8 +97,6 @@ class DataGrader():
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_w_dur.csv")
     d = DataGrader(df.drop(columns = 'human_transcript').loc[:20])
-    d.preprocess_data(inplace = True)
-    d.compute_features(inplace = True)
-    d.estimate_wcpm(inplace = True)
-    print(d.data.head(20))
+    d.grade_wcpm()
+    print(d.data.data.head(20))
 

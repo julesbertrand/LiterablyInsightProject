@@ -13,9 +13,7 @@ from num2words import num2words  # preprocessing
 import string # preprocessing punctuation
 import difflib
 
-# from literacy_score.config import DATA_PATH, MODEL_PATH, DEFAULT_MODEL
-DATA_PATH = './data/'
-MODEL_PATH = './literacy_score/models/'
+from literacy_score.config import DATA_PATH, MODELS_PATH, DEFAULT_MODEL
 
 def open_file(file_path, sep = ';'):
     _, extension = file_path.rsplit(".", 1)
