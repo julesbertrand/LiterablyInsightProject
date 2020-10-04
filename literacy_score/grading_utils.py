@@ -234,7 +234,7 @@ class Dataset():
         temp['prompt_avg_word_length'] = self.data[self.prompt_col].apply(lambda x: avg_length_of_words(x))
         temp['asr_avg_word_length'] = self.data[self.asr_col].apply(lambda x: avg_length_of_words(x))
         if self.mode == 'train':
-            temp['human_wc'] = self.data['human_wcpm'].mul(self.data['scored_duration'] / 60, fill_value = 0)
+            temp['human_wc'] = self.data['human_wcpm'].mul(self.data[self.duration_col] / 60, fill_value = 0)
         self.features = temp
         if not inplace:
             return self.features
@@ -248,6 +248,29 @@ class Dataset():
                 return False
             return True
         return self.data.apply(lambda x: determine_outlier(x, tol), axis=1)
+
+    def compute_stats(self, Y_pred, test_idx):
+        """ Computes statistics about the wcpm estimation for train mode
+        input: asr_wc_estimation: prediction on test set of words correct 
+                        test_idx: index of test set in all data 
+        """
+        if self.mode != 'train':
+            logging.error("You need to be in train mode to compute statistics about the wcpm estimation.")
+            return
+        stats = pd.DataFrame(Y_pred, columns = ['asr_wc_estimation'], index = test_idx)
+        stats['human_wcpm'] = self.data[self.human_wcpm_col].loc[test_idx]
+        stats['wcpm_estimation'] = stats['asr_wc_estimation'].div(self.data[self.duration_col].loc[test_idx] / 60, fill_value = 0)
+        stats['wcpm_estimation_error'] = stats['human_wcpm'] - stats['wcpm_estimation']
+        stats['wcpm_estimation_abs_error'] = stats['wcpm_estimation_error'].abs()
+        stats['wcpm_estimation_error_%'] = np.where(stats['human_wcpm'] != 0,
+                                                        stats['wcpm_estimation_error'] / stats['human_wcpm'],
+                                                        0
+                                                        ) 
+        stats['wcpm_estimation_abs_error_%'] = stats['wcpm_estimation_error_%'].abs()
+        return stats
+
+
+
 
 
 if __name__ == "__main__":

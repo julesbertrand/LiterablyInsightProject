@@ -30,17 +30,13 @@ def grade_wcpm(df):
     return data.grade_wcpm()
 
 class DataGrader():
-    prompt_col = 'prompt'
-    asr_col = 'asr_transcript'
-    duration_col = 'scored_duration'
-
     def __init__(self,
                 df, 
-                prompt_col = prompt_col, 
-                asr_col = asr_col, 
-                duration_col = duration_col, 
+                prompt_col = 'prompt', 
+                asr_col = 'asr_transcript', 
+                duration_col = 'scored_duration', 
                 model = 'XGB',
-                model_file
+                model_file = ''
                 ):
         self.data = Dataset(df,
                             prompt_col = prompt_col,
@@ -50,7 +46,7 @@ class DataGrader():
                             )
 
         self.scaler = self.__load_model('standard_scaler.joblib')
-        if model_file == "":
+        if model_file == '':
             self.model = self.__load_model('XGB_0.joblib')
         else:
             self.model = self.__load_model(model_file)
@@ -94,7 +90,7 @@ class DataGrader():
         self.features = self.scaler.transform(self.features)
         wc = self.model.predict(self.features)
         wc = pd.Series(wc, name = 'wc_estimations')
-        wcpm = wc.div(self.data.data[self.duration_col] /60, fill_value = 0).apply(lambda x: round(x))
+        wcpm = wc.div(self.data.data[self.duration_col] /60, fill_value = 0).round()
         wcpm.rename('wcpm_estimations', inplace = True)
         if not inplace:
             return wcpm
