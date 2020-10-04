@@ -123,6 +123,7 @@ class Dataset():
                 df,
                 prompt_col = 'prompt',
                 asr_col = 'asr_transcript',
+                human_col = 'human_transcript',
                 duration_col = 'scored_duration',
                 human_wcpm_col = "human_wcpm"
                 ):
@@ -130,6 +131,7 @@ class Dataset():
         self.data = self.data_raw.copy()
         self.prompt_col = prompt_col
         self.asr_col = asr_col
+        self.human_col = human_col
         self.duration_col = duration_col
         self.human_wcpm_col = human_wcpm_col
 
@@ -151,7 +153,7 @@ class Dataset():
                 print(self.data[col].iloc[index])
                 print("\n")
         else:
-            print(self.data[col_names]) 
+            print(self.data[col_names])
 
     def preprocess_data(self,
                         lowercase = True,
@@ -233,10 +235,21 @@ class Dataset():
         if not inplace:
             return self.features
 
+    def determine_outliers_mask(self, tol = .2):
+        def determine_outlier(human_transcript, asr_transcript, tol):
+            len_h = len(human_transcript.split())
+            len_a = len(asr_transcript.split()) 
+            # if diff between lengths > tol * mean of lengths
+            if len_h > (1+tol) * len_a or len_a > (1+tol) * len_h:
+                return False
+            return True
+        return self.data.apply(lambda x: determine_outlier(x[self.human_col], x[self.asr_col], tol), axis=1)
+
 
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_w_dur.csv")
-    d = Dataset(df.drop(columns = 'human_transcript').loc[:20])
+    d = Dataset(df.loc[:20])
     d.preprocess_data(inplace = True)
     d.compute_features(inplace = True)
-    print(d.features.head())
+    print(d.determine_outliers_mask(tol = .1))
+    print(d.data.head(6))
