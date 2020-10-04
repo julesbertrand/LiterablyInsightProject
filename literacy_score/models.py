@@ -49,6 +49,10 @@ class ModelTrainer():
                             )
 
     def save_model(self, replace = False):
+        save_file(self.scaler,
+                path = MODELS_PATH,
+                file_name =  'standard_scaler.joblib',
+                replace = replace)
         save_file(self.model,
                 path = MODELS_PATH,
                 file_name = self.model_name + '.joblib',
@@ -61,16 +65,19 @@ class ModelTrainer():
                             )
         self.features = self.data.compute_features(inplace = False)  # created df self.features
 
-    def train(self, save_model = True):
+    def train(self):
         logging.info("Training %s", self.model_name)
         try:
             self.model = self.model.fit(self.X_train, self.Y_train)
         except AttributeError:
             logging.error("X_train not defined: Please prepare train and test set before training by calling ModelTrainer.prepare_train_test_set()")
-        if save_model:
-            self.save_model()
 
-    def prepare_train_test_set(self, remove_outliers = False, outliers_tol = .1, test_set_size = .2, save_scaler = False, inplace = True):
+    def prepare_train_test_set(self,
+                            remove_outliers = False,
+                            outliers_tol = .1, 
+                            test_set_size = .2, 
+                            inplace = True
+                            ):
         if remove_outliers:
             mask = self.data.determine_outliers_mask(tol = outliers_tol)
             self.features = self.features[mask]
@@ -88,11 +95,9 @@ class ModelTrainer():
                                                    )
         self.test_idx = X_test_raw.index
         logging.info("Fit scaler to training set and transform training and test set")
-        scaler = StandardScaler()
-        X_train = scaler.fit_transform(X_train_raw)
-        X_test = scaler.transform(X_test_raw)
-        if save_scaler:
-            save_file(scaler, path = MODELS_PATH, file_name =  'standard_scaler.joblib', replace = False)
+        self.scaler = StandardScaler()
+        X_train = self.scaler.fit_transform(X_train_raw)
+        X_test = self.scaler.transform(X_test_raw)
         if not inplace:
             return X_train, X_test, Y_train, Y_test
         else:
