@@ -24,8 +24,7 @@ def open_file(file_path, sep = ';'):
     if extension == 'csv':
         f = pd.read_csv(file_path, sep=sep)
     else:
-        with open(file_path, 'rb') as f:
-            f = joblib.load(f)
+        f = joblib.load(f)
     return f
 
 
