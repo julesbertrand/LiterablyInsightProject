@@ -34,23 +34,32 @@ class DataGrader():
     asr_col = 'asr_transcript'
     duration_col = 'scored_duration'
 
-    def __init__(self, df, prompt_col = prompt_col, asr_col = asr_col, duration_col = duration_col, model = 'xgb', model_file = ''):
+    def __init__(self,
+                df, 
+                prompt_col = prompt_col, 
+                asr_col = asr_col, 
+                duration_col = duration_col, 
+                model = 'XGB',
+                model_file
+                ):
         self.data = Dataset(df,
                             prompt_col = prompt_col,
                             asr_col = asr_col,
-                            duration_col = duration_col
+                            duration_col = duration_col,
+                            mode = 'predict'
                             )
 
         self.scaler = self.__load_model('standard_scaler.joblib')
-        print('hey')
-        self.model = self.__load_model('rf_hypertuned.pkl')
-        self.model_name = "RF"
+        if model_file == "":
+            self.model = self.__load_model('XGB_0.joblib')
+        else:
+            self.model = self.__load_model(model_file)
+        self.model_name = model
 
-    def __load_model(self, model_name):
-        model_path = MODELS_PATH + model_name
+    def __load_model(self, model_file):
+        model_path = MODELS_PATH + model_file
         logging.info("Loading model from %s", model_path)
-        with open(model_path, 'rb') as f:
-            model = joblib.load(f)  
+        model = open_file(model_path)
         return model
 
     def set_model(self, model_name):
@@ -64,7 +73,7 @@ class DataGrader():
                 self.model = self.__load_model('xgb_hypertuned.pkl')
                 self.model_name = model_name
             else:
-                logging.error("No such model is available: %s in %s. please choose between 'RF' and 'XGB'", model_name, MODEL_PATH)
+                logging.error("No such model is available: %s in %s. please choose between 'RF' and 'XGB'", model_name, MODELS_PATH)
 
     def grade_wcpm(self):
         self.data.preprocess_data(**PREPROCESSING_STEPS,
@@ -95,8 +104,8 @@ class DataGrader():
 
 
 if __name__ == "__main__":
-    df = pd.read_csv("./data/wcpm_w_dur.csv")
-    d = DataGrader(df.drop(columns = 'human_transcript').loc[:20])
+    df = pd.read_csv("./data/wcpm_more.csv")
+    d = DataGrader(df.drop(columns = 'human_transcript').loc[:20], model_file = 'XGB_0.joblib')
     d.grade_wcpm()
     print(d.data.data.head(20))
 

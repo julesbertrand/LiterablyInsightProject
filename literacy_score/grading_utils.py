@@ -10,8 +10,8 @@ import joblib
 import ast  # preprocessing ast to litteral
 import re  # preprocessing
 from num2words import num2words  # preprocessing 
-import string # preprocessing punctuation
-import difflib
+import string  # preprocessing punctuation
+import difflib  # text comparison
 
 from literacy_score.config import DATA_PATH, MODELS_PATH, DEFAULT_MODEL
 
@@ -22,7 +22,7 @@ def open_file(file_path, sep = ';'):
     if extension == 'csv':
         f = pd.read_csv(file_path, sep=sep)
     else:
-        f = joblib.load(f)
+        f = joblib.load(file_path)
     return f
 
 
@@ -122,15 +122,19 @@ class Dataset():
                 asr_col = 'asr_transcript',
                 human_col = 'human_transcript',
                 duration_col = 'scored_duration',
-                human_wcpm_col = "human_wcpm"
+                human_wcpm_col = 'human_wcpm',
+                mode = 'predict'
                 ):
         self.data_raw = df
         self.data = self.data_raw.copy()
+        # columns names
         self.prompt_col = prompt_col
         self.asr_col = asr_col
         self.human_col = human_col
         self.duration_col = duration_col
         self.human_wcpm_col = human_wcpm_col
+        # mode can be train or predict ,used for labeled handling when features are computed
+        self.mode = mode
 
     def get_data(self):
         return self.data
@@ -162,6 +166,8 @@ class Dataset():
         """ Preprocessing data to make it standard and comparable
         """
         columns = [self.prompt_col, self.asr_col]
+        if self.mode == 'train':
+            columns.append(self.human_col)
         df = self.data[columns].copy()
         if asr_string_recomposition:
             # if data is string-ed list of dict, get list of dict
@@ -185,7 +191,7 @@ class Dataset():
             t = str.maketrans(string.punctuation, ' ' * len(string.punctuation))
             def remove_punctuation(s, translater):
                 s = s.translate(translater)
-                return " ".join(s.split())
+                return str(" ".join(s.split()))
             df.applymap(lambda x: remove_punctuation(x, t))
         df.fillna(" ", inplace = True)
 
@@ -227,25 +233,26 @@ class Dataset():
         temp['asr_word_count'] = self.data[self.asr_col].apply(lambda x: len(x.split()))
         temp['prompt_avg_word_length'] = self.data[self.prompt_col].apply(lambda x: avg_length_of_words(x))
         temp['asr_avg_word_length'] = self.data[self.asr_col].apply(lambda x: avg_length_of_words(x))
-        # temp['human_wc'] = self.data['human_wcpm'].mul(self.data['scored_duration'] / 60, fill_value = 0)
+        if self.mode == 'train':
+            temp['human_wc'] = self.data['human_wcpm'].mul(self.data['scored_duration'] / 60, fill_value = 0)
         self.features = temp
         if not inplace:
             return self.features
 
     def determine_outliers_mask(self, tol = .2):
-        def determine_outlier(human_transcript, asr_transcript, tol):
-            len_h = len(human_transcript.split())
-            len_a = len(asr_transcript.split()) 
+        def determine_outlier(row, tol):
+            len_h = len(str(row[self.human_col]).split())
+            len_a = len(str(row[self.asr_col]).split()) 
             # if diff between lengths > tol * mean of lengths
             if len_h > (1+tol) * len_a or len_a > (1+tol) * len_h:
                 return False
             return True
-        return self.data.apply(lambda x: determine_outlier(x[self.human_col], x[self.asr_col], tol), axis=1)
+        return self.data.apply(lambda x: determine_outlier(x, tol), axis=1)
 
 
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_w_dur.csv")
-    d = Dataset(df.loc[:20])
+    d = Dataset(df)
     d.preprocess_data(inplace = True)
     d.compute_features(inplace = True)
     print(d.determine_outliers_mask(tol = .1))

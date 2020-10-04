@@ -5,6 +5,8 @@
 MODELS_PATH = './literacy_score/models/'
 # a path to a folder in which data is saved by default
 DATA_PATH = './data/'
+# test data path
+TEST_DATA_PATH = './data/wcpm_more.csv'
 
 # the default type of model used for predictions and training
 DEFAULT_MODEL = 'XGB'
@@ -16,3 +18,6 @@ PREPROCESSING_STEPS = {
     'convert_num2words': True,
     'asr_string_recomposition': False,
 }
+
+# seed for training
+SEED = 105
