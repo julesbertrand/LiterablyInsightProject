@@ -36,6 +36,7 @@ class DataGrader():
                 prompt_col = 'prompt', 
                 asr_col = 'asr_transcript', 
                 duration_col = 'scored_duration',
+                model_name = 'XGB',
                 model_file = ''
                 ):
         self.data = Dataset(df,
@@ -50,7 +51,7 @@ class DataGrader():
             self.model = self.__load_model('XGB_0.joblib')
         else:
             self.model = self.__load_model(model_file)
-        self.model_name = model
+        self.model_name = model_name
 
     def __load_model(self, model_file):
         model_path = MODELS_PATH + model_file
@@ -95,7 +96,7 @@ class DataGrader():
         self.features = self.scaler.transform(self.features)
         wc = self.model.predict(self.features)
         wc = pd.Series(wc, name = 'wc_estimations')
-        wcpm = wc.div(self.data.data[self.duration_col] /60, fill_value = 0).round()
+        wcpm = wc.div(self.data.data[self.data.duration_col] /60, fill_value = 0).round()
         wcpm.rename('wcpm_estimations', inplace = True)
         if not inplace:
             return wcpm
@@ -106,7 +107,7 @@ class DataGrader():
 
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_more.csv")
-    d = DataGrader(df.drop(columns = 'human_transcript').loc[:20], model_file = 'XGB_0.joblib')
+    d = DataGrader(df.drop(columns = 'human_transcript').loc[:20], model_file = 'xgb.pkl')
     d.grade_wcpm()
     print(d.data.data.head(20))
 
