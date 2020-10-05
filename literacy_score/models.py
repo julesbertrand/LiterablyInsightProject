@@ -1,5 +1,3 @@
-import logging
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -11,18 +9,8 @@ from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import make_scorer 
 
-from literacy_score.grading_utils import open_file, save_file, Dataset
+from literacy_score.grading_utils import open_file, save_file, logger, Dataset
 from literacy_score.config import MODELS_PATH, PREPROCESSING_STEPS, SEED
-
-# Logging
-logger = logging.getLogger()
-handler = logging.StreamHandler()
-formatter = logging.Formatter(
-        '%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.setLevel(logging.INFO)
-
 
 class ModelTrainer():
     def __init__(self,
@@ -58,7 +46,7 @@ class ModelTrainer():
                         file_name =  'standard_scaler.joblib',
                         replace = replace)
             except AttributeError:
-                logging.error("scaler not defined: Please fit a scaler before saving \
+                logger.error("scaler not defined: Please fit a scaler before saving \
                             it by calling ModelTrainer.prepare_train_test_set()")
         if model:
             save_file(self.model,
@@ -74,11 +62,11 @@ class ModelTrainer():
         self.features = self.data.compute_features(inplace = False)  # created df self.features
 
     def train(self):
-        logging.info("Training %s", self.model_name)
+        logger.info("Training %s", self.model_name)
         try:
             self.model = self.model.fit(self.X_train, self.Y_train)
         except AttributeError:
-            logging.error("X_train, Y_train not defined: Please prepare train and test \
+            logger.error("X_train, Y_train not defined: Please prepare train and test \
                         set before training by calling ModelTrainer.prepare_train_test_set()")
 
     def prepare_train_test_set(self,
@@ -91,7 +79,7 @@ class ModelTrainer():
             mask = self.data.determine_outliers_mask(tol = outliers_tol)
             self.features = self.features[mask]
             self.datapoints = mask.sum()
-            logging.info("Removed %i outliers, %i datapoints remaining for training/testing",
+            logger.info("Removed %i outliers, %i datapoints remaining for training/testing",
                         len(mask) - self.datapoints,
                         self.datapoints
                         )
@@ -103,7 +91,7 @@ class ModelTrainer():
                                                     random_state = SEED
                                                    )
         self.test_idx = X_test_raw.index
-        logging.info("Fit scaler to training set and transform training and test set")
+        logger.info("Fit scaler to training set and transform training and test set")
         self.scaler = StandardScaler()
         X_train = self.scaler.fit_transform(X_train_raw)
         X_test = self.scaler.transform(X_test_raw)
@@ -152,7 +140,7 @@ class ModelTrainer():
         try:
             grid_search.fit(self.X_train, self.Y_train)
         except AttributeError:
-            logging.error("X_train, Y_train not defined: Please prepare train and test \
+            logger.error("X_train, Y_train not defined: Please prepare train and test \
                         set before training by calling ModelTrainer.prepare_train_test_set()")
         self.model  = grid_search.best_estimator_
         return grid_search

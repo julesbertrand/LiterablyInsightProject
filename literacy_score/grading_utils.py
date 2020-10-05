@@ -13,7 +13,16 @@ from num2words import num2words  # preprocessing
 import string  # preprocessing punctuation
 import difflib  # text comparison
 
-from literacy_score.config import DATA_PATH, MODELS_PATH, DEFAULT_MODEL
+from literacy_score.config import DATA_PATH, MODELS_PATH
+
+# Logging
+logger = logging.getLogger()
+handler = logging.StreamHandler()
+formatter = logging.Formatter(
+        '%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 def open_file(file_path, sep = ';'):
     _, extension = file_path.rsplit(".", 1)
@@ -108,14 +117,14 @@ class Dataset():
             columns.append(self.human_col)
         df = self.data[columns].copy()
         if asr_string_recomposition:
-            logging.info("Recomposing ASR string from dict")
+            logger.info("Recomposing ASR string from dict")
             df = df.applymap(lambda x: ast.literal_eval(x))
             df = df.applymap(lambda x: " ".join([e['text'] for e in x]))
         if lowercase:
-            logging.info("Converting df to lowercase")
+            logger.info("Converting df to lowercase")
             df = df.applymap(lambda x: str(x).lower())
         if convert_num2words:
-            logging.info("Converting numbers to words")
+            logger.info("Converting numbers to words")
             def converter(s):
                 if len(s) == 4:
                     return re.sub('\d+', lambda y: num2words(y.group(), to='year'), s)
@@ -123,7 +132,7 @@ class Dataset():
             df = df.applymap(converter)
         if punctuation_free:
             # remove punctuation
-            logging.info("Removing punctuation")
+            logger.info("Removing punctuation")
             t = str.maketrans(string.punctuation, ' ' * len(string.punctuation))
             def remove_punctuation(s, translater):
                 s = s.translate(translater)
@@ -156,9 +165,9 @@ class Dataset():
         """ apply _compare_text to two self.df columns 
         and creates a new column in df for the number of common words
         """
-        logging.info("Comparing %s to %s", col_1, col_2)
+        logger.info("Comparing %s to %s", col_1, col_2)
         if not (isinstance(col_1, str) and isinstance(col_2, str)):
-            logging.error("col_1 and col_2 should be strings from data columns headers")
+            logger.error("col_1 and col_2 should be strings from data columns headers")
         temp = self.data.apply(lambda x: self.compare_text(x[col_1], x[col_2]), axis=1)
 
         if not inplace:
@@ -221,7 +230,7 @@ class Dataset():
                                             col_2 = self.asr_col,
                                             inplace = False
                                             )
-        logging.info("Calculating features")
+        logger.info("Calculating features")
         temp = diff_list.apply(lambda x: self.get_errors_dict(x))
         temp = pd.DataFrame(temp.to_list(), columns = ["correct_words",
                                                         "added_words",
@@ -259,7 +268,7 @@ class Dataset():
                         test_idx: index of test set in all data 
         """
         if self.mode != 'train':
-            logging.error("You need to be in train mode to compute statistics about the wcpm estimation.")
+            logger.error("You need to be in train mode to compute statistics about the wcpm estimation.")
             return
         stats = pd.DataFrame(Y_pred, columns = ['asr_wc_estimation'], index = test_idx)
         stats['human_wcpm'] = self.data[self.human_wcpm_col].loc[test_idx]

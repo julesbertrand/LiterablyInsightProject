@@ -1,6 +1,5 @@
 import os
 import errno
-import logging
 
 import numpy as np
 import pandas as pd
@@ -12,18 +11,8 @@ import re  # preprocessing
 from num2words import num2words  # preprocessing 
 import string # preprocessing punctuation
 
-from literacy_score.grading_utils import open_file, save_file
-from literacy_score.grading_utils import Dataset
-from literacy_score.config import DATA_PATH, MODELS_PATH, DEFAULT_MODEL, PREPROCESSING_STEPS
-
-# Logging
-logger = logging.getLogger()
-handler = logging.StreamHandler()
-formatter = logging.Formatter(
-        '%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.setLevel(logging.INFO)
+from literacy_score.grading_utils import open_file, save_file, logger, Dataset
+from literacy_score.config import MODELS_PATH, DEFAULT_MODEL, PREPROCESSING_STEPS
 
 # main function
 def grade_wcpm(df):
@@ -36,7 +25,7 @@ class DataGrader():
                 prompt_col = 'prompt', 
                 asr_col = 'asr_transcript', 
                 duration_col = 'scored_duration',
-                model_name = 'XGB',
+                model_name = DEFAULT_MODEL,
                 model_file = ''
                 ):
         self.data = Dataset(df,
@@ -55,7 +44,7 @@ class DataGrader():
 
     def __load_model(self, model_file):
         model_path = MODELS_PATH + model_file
-        logging.info("Loading model from %s", model_path)
+        logger.info("Loading model from %s", model_path)
         model = open_file(model_path)
         return model
 
@@ -73,7 +62,7 @@ class DataGrader():
                 self.model = self.__load_model('xgb_hypertuned.pkl')
                 self.model_name = model_name
             else:
-                logging.error("No such model is available: %s in %s. please choose between 'RF' and 'XGB'", model_name, MODELS_PATH)
+                logger.error("No such model is available: %s in %s. please choose between 'RF' and 'XGB'", model_name, MODELS_PATH)
 
     def grade_wcpm(self):
         """ preprocess, compute features and give grade all in one function
@@ -92,7 +81,7 @@ class DataGrader():
             model = self.model
         else:
             self.set_model(model_name = model)
-        logging.info("Estimating wcpm")
+        logger.info("Estimating wcpm")
         self.features = self.scaler.transform(self.features)
         wc = self.model.predict(self.features)
         wc = pd.Series(wc, name = 'wc_estimations')
