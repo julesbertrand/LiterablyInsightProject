@@ -1,3 +1,4 @@
+.literacy_score/utils.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

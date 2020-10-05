@@ -32,8 +32,7 @@ def data_cleaning_smoke():
 def data_cleaning_compare_text():
     a = "I am a data scientist testing early literacy and reading skills"
     b = "I am machine learning engineer testin early literacy and reading skill s"
-    data_table = pd.DataFrame.from_dict({'a': [a], 'b': [b]})
-    obj = data_cleaning.data(data_table)
+    obj = data_cleaning.data(pd.DataFrame.from_dict({'a': [a], 'b': [b]}))
     npt.assert_equal(obj._compare_text(obj.df['a'].iloc[0], obj.df['b'].iloc[0]), 6)
 
 
