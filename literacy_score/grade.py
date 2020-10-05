@@ -81,7 +81,7 @@ class DataGrader():
             model = self.model
         else:
             self.set_model(model_name = model)
-        logger.info("Estimating wcpm")
+        logger.debug("Estimating wcpm")
         self.features = self.scaler.transform(self.features)
         wc = self.model.predict(self.features)
         wc = pd.Series(wc, name = 'wc_estimations')

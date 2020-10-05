@@ -10,12 +10,12 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import make_scorer 
 
 from literacy_score.grading_utils import open_file, save_file, logger, Dataset
-from literacy_score.config import MODELS_PATH, PREPROCESSING_STEPS, SEED
+from literacy_score.config import MODELS_PATH, PREPROCESSING_STEPS, SEED, DEFAULT_MODEL
 
 class ModelTrainer():
     def __init__(self,
                 df, 
-                model_name,
+                model_name = DEFAULT_MODEL,
                 prompt_col = 'prompt', 
                 asr_col = 'asr_transcript',
                 human_col = 'human_transcript',
@@ -91,7 +91,7 @@ class ModelTrainer():
                                                     random_state = SEED
                                                    )
         self.test_idx = X_test_raw.index
-        logger.info("Fit scaler to training set and transform training and test set")
+        logger.debug("Fit scaler to training set and transform training and test set")
         self.scaler = StandardScaler()
         X_train = self.scaler.fit_transform(X_train_raw)
         X_test = self.scaler.transform(X_test_raw)
@@ -126,16 +126,17 @@ class ModelTrainer():
             plt.show()
         return stats
 
-    def hyperparams_tuning(self, cv_params, cv_folds = 5):
+    def grid_search(self, cv_params, cv_folds = 5, verbose = 2, scoring_metric = 'r2'):
         if self.model_name == 'RF':
             estimator = RandomForestRegressor(random_state = SEED)
         elif self.model_name == 'XGB':
             estimator = XGBRegressor(random_state = SEED)
         grid_search = GridSearchCV(estimator = estimator,
                                     param_grid = cv_params, 
+                                    scoring = scoring_metric,
                                     cv = cv_folds,
                                     n_jobs = -1, 
-                                    verbose = 5
+                                    verbose = verbose
                                     )
         try:
             grid_search.fit(self.X_train, self.Y_train)
@@ -145,8 +146,25 @@ class ModelTrainer():
         self.model  = grid_search.best_estimator_
         return grid_search
 
-    def plot_grid_search(self):
-        return
+    def plot_grid_search(self, cv_results, x, hue=None, y='mean_test_score', log_scale=True):
+        # Get Test Scores Mean and std for each grid search
+        cv_results = pd.DataFrame(cv_results)
+        hue = 'param_' + hue
+        x = 'param_' + x
+        # Plot Grid search scores
+        plt.style.use("seaborn-darkgrid")
+        _, ax = plt.subplots(1,1, figsize = (12, 8))
+
+        # Param1 is the X-axis, Param 2 is represented as a different curve (color line)
+        sns.lineplot(data=cv_results, x=x, y=y, hue=hue, palette='Set2')
+
+        ax.set_title("Grid Search Scores", fontsize=20, fontweight='bold')
+        ax.set_xlabel(x, fontsize=16)
+        ax.set_ylabel('CV Average Score', fontsize=16)
+        ax.legend(loc="best", fontsize=15)
+        ax.set_xscale('log')
+        ax.grid('on')
+        plt.show()
 
     def feature_importance(self, threshold = 0.001):
         """
@@ -160,14 +178,15 @@ class ModelTrainer():
         labels = self.features.columns[idx]
         importance = importance[idx]
         idx = np.argsort(importance)[::-1]
+
         plt.style.use("seaborn-darkgrid")
         plt.figure(figsize = (8, max(8, 0.2 * len(idx))))
         sns.barplot(x=importance[idx], y=labels[idx], color=sns.color_palette()[0])
-        plt.title("Feature importance for current model", fontsize=16)
         for i, val in enumerate(importance[idx]):
             plt.text(val + 0.01, i, s="{:.3f}".format(val), ha='left', va='center')
+        plt.title("Feature importance for current model", fontsize=16)
         plt.xticks(fontsize=14)
-        # plt.gca().set_xlim(0, max(importance[idx]) + 0.03)
+        plt.gca().set_xlim(0, max(importance[idx]) + 0.03)
         plt.show()
 
 if __name__ == "__main__":
@@ -178,6 +197,12 @@ if __name__ == "__main__":
     trainer.compute_features()
     trainer.prepare_train_test_set(remove_outliers = True, outliers_tol = .1)
     trainer.train()
-    trainer.evaluate_model(visualize = False)
-    # trainer.feature_importance()
-    trainer.save_model(scaler = True, model = False)
+    trainer.feature_importance()
+    # trainer.save_model(scaler = True, model = False)
+    # gd = trainer.grid_search(cv_params={'learning_rate': [0.05, 0.1, 0.3],
+    #                                     'n_estimators': list(np.arange(10, 500, 20))
+    #                                     },
+    #                         cv_folds=5,
+    #                         scoring_metric = 'neg_mean_squared_log_error')
+    # trainer.plot_grid_search(gd.cv_results_, x='n_estimators', hue='learning_rate')
+    # trainer.evaluate_model(visualize = False)

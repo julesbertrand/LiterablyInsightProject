@@ -56,10 +56,12 @@ def save_file(file, path, file_name, replace=False):
         while os.path.exists(path + ".".join((file_name + '_{:d}'.format(i), extension))):
             i += 1
         file_name += '_{:d}'.format(i)
+    file_name = ".".join((file_name, extension))
     if extension == 'csv':
-        file.to_csv(path + ".".join((file_name, extension)), index=False, sep=';', encoding='utf-8')
+        file.to_csv(path + file_name, index=False, sep=';', encoding='utf-8')
     else:
-        joblib.dump(file, path + ".".join((file_name, extension)), compress = 1)
+        joblib.dump(file, path + file_name, compress = 1)
+    logger.info("Saved file %s in dir %s", file_name, path)
 
 
 class Dataset():
@@ -80,7 +82,7 @@ class Dataset():
         self.human_col = human_col
         self.duration_col = duration_col
         self.human_wcpm_col = human_wcpm_col
-        # mode can be train or predict ,used for labeled handling when features are computed
+        # mode can be train or predict, used for labeled handling when features are computed
         self.mode = mode
 
     def get_data(self):
@@ -117,14 +119,14 @@ class Dataset():
             columns.append(self.human_col)
         df = self.data[columns].copy()
         if asr_string_recomposition:
-            logger.info("Recomposing ASR string from dict")
+            logger.debug("Recomposing ASR string from dict")
             df = df.applymap(lambda x: ast.literal_eval(x))
             df = df.applymap(lambda x: " ".join([e['text'] for e in x]))
         if lowercase:
-            logger.info("Converting df to lowercase")
+            logger.debug("Converting df to lowercase")
             df = df.applymap(lambda x: str(x).lower())
         if convert_num2words:
-            logger.info("Converting numbers to words")
+            logger.debug("Converting numbers to words")
             def converter(s):
                 if len(s) == 4:
                     return re.sub('\d+', lambda y: num2words(y.group(), to='year'), s)
@@ -132,7 +134,7 @@ class Dataset():
             df = df.applymap(converter)
         if punctuation_free:
             # remove punctuation
-            logger.info("Removing punctuation")
+            logger.debug("Removing punctuation")
             t = str.maketrans(string.punctuation, ' ' * len(string.punctuation))
             def remove_punctuation(s, translater):
                 s = s.translate(translater)
@@ -165,7 +167,7 @@ class Dataset():
         """ apply _compare_text to two self.df columns 
         and creates a new column in df for the number of common words
         """
-        logger.info("Comparing %s to %s", col_1, col_2)
+        logger.debug("Comparing %s to %s", col_1, col_2)
         if not (isinstance(col_1, str) and isinstance(col_2, str)):
             logger.error("col_1 and col_2 should be strings from data columns headers")
         temp = self.data.apply(lambda x: self.compare_text(x[col_1], x[col_2]), axis=1)
@@ -230,7 +232,7 @@ class Dataset():
                                             col_2 = self.asr_col,
                                             inplace = False
                                             )
-        logger.info("Calculating features")
+        logger.debug("Computing features")
         temp = diff_list.apply(lambda x: self.get_errors_dict(x))
         temp = pd.DataFrame(temp.to_list(), columns = ["correct_words",
                                                         "added_words",
