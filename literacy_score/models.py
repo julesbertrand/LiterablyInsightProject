@@ -49,10 +49,15 @@ class ModelTrainer():
                             )
 
     def save_model(self, replace = False):
-        save_file(self.scaler,
-                path = MODELS_PATH,
-                file_name =  'standard_scaler.joblib',
-                replace = replace)
+        """ Save both scaler and trained / untrained model
+        """
+        try:
+            save_file(self.scaler,
+                    path = MODELS_PATH,
+                    file_name =  'standard_scaler.joblib',
+                    replace = replace)
+        except AttributeError:
+             logging.error("scaler not defined: Please fit a scaler before saving it by calling ModelTrainer.prepare_train_test_set()")
         save_file(self.model,
                 path = MODELS_PATH,
                 file_name = self.model_name + '.joblib',

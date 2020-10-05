@@ -53,68 +53,6 @@ def save_file(file, path, file_name, replace=False):
         joblib.dump(file, path + ".".join((file_name, extension)), compress = 1)
 
 
-def avg_length_of_words(s, sep = " "):
-    """ takes a string s and gives the avg length of words in it
-    """
-    s = s.split(sep)
-    n = len(s)
-    if n == 0:
-        return 0
-    return sum(len(word) for word in s) / n
-
-
-def compare_text(string_a, string_b, split_car = " "):
-    """ compare string a and b split by split_care, default split by word, remove text surplus at the end
-    """
-    differ_list = difflib.Differ().compare(str(string_a).split(split_car), str(string_b).split(split_car))
-    differ_list = list(differ_list)
-    
-    # if a lot characters at the end were added or removed from prompt
-    # then delete them from differ list 
-    to_be_removed = differ_list[-1][0]
-    if to_be_removed != " ":
-        while differ_list[-1][0] == to_be_removed and len(differ_list) >= 1:
-            differ_list.pop()
-    return differ_list
-
-
-def get_errors_dict(differ_list):
-    """ computes number of correct, added, removed, replaced words in
-     the difflib differ list and computes the list of replaced words detected 
-    """
-    counter = 0
-    errors_dict = {'prompt': [], 'transcript': []}
-    skip_next = 0
-    n = len(differ_list)
-    add = 0
-    sub = 0
-    for i, word in enumerate(differ_list):
-        if skip_next > 0:
-            skip_next -= 1
-            pass  # when the word has already been added to the error dict
-        if word[0] == " ":
-            counter += 1  # + 1 if word correct 
-        elif i < n - 2:  # keep track of errors and classify them later
-            if word[0] == "+":
-                add += 1
-            elif word[0] == "-":
-                sub += 1
-            j = 1
-            while i+j < n and differ_list[i + j][0] == "?":  # account for ? in skip_next
-                j += 1
-            plus_minus = (word[0] == "+" and differ_list[i + j][0] == "-")
-            minus_plus = (word[0] == "-" and differ_list[i + j][0] == "+")
-            skip_next = (plus_minus or minus_plus) * j
-            if plus_minus:
-                errors_dict['prompt'] += [word.replace("+ ", "")]
-                errors_dict['transcript'] += [differ_list[i + j].replace("- ", "")]
-            elif minus_plus:
-                errors_dict['prompt'] += [word.replace("- ", "")]
-                errors_dict['transcript'] += [differ_list[i + j].replace("+ ", "")]
-    replaced = len(errors_dict['prompt'])
-    return counter, add, sub, replaced, errors_dict
-
-
 class Dataset():
     def __init__(self,
                 df,
@@ -170,12 +108,10 @@ class Dataset():
             columns.append(self.human_col)
         df = self.data[columns].copy()
         if asr_string_recomposition:
-            # if data is string-ed list of dict, get list of dict
             logging.info("Recomposing ASR string from dict")
             df = df.applymap(lambda x: ast.literal_eval(x))
             df = df.applymap(lambda x: " ".join([e['text'] for e in x]))
         if lowercase:
-            # convert text to lowercase
             logging.info("Converting df to lowercase")
             df = df.applymap(lambda x: str(x).lower())
         if convert_num2words:
@@ -200,19 +136,83 @@ class Dataset():
         else:
             self.data[columns] = df
 
+    @staticmethod
+    def compare_text(string_a, string_b, split_car = " "):
+        """ compare string a and b split by split_care, default split by word, remove text surplus at the end
+        Used in self.compute_differ_list()
+        """
+        differ_list = difflib.Differ().compare(str(string_a).split(split_car), str(string_b).split(split_car))
+        differ_list = list(differ_list)
+        
+        # if a lot characters at the end were added or removed from prompt
+        # then delete them from differ list 
+        to_be_removed = differ_list[-1][0]
+        if to_be_removed != " ":
+            while differ_list[-1][0] == to_be_removed and len(differ_list) >= 1:
+                differ_list.pop()
+        return differ_list
+
     def compute_differ_list(self, col_1, col_2, inplace = False):
         """ apply _compare_text to two self.df columns 
         and creates a new column in df for the number of common words
         """
         logging.info("Comparing %s to %s", col_1, col_2)
         if not (isinstance(col_1, str) and isinstance(col_2, str)):
-            raise TypeError("col_1 and col_2 should be strings from data columns headers")
-        temp = self.data.apply(lambda x: compare_text(x[col_1], x[col_2]), axis=1)
+            logging.error("col_1 and col_2 should be strings from data columns headers")
+        temp = self.data.apply(lambda x: self.compare_text(x[col_1], x[col_2]), axis=1)
 
         if not inplace:
             return pd.Series(temp, name = 'differ_list')
         else:
             self.data['differ_list'] = temp
+
+    @staticmethod
+    def get_errors_dict(differ_list):
+        """ computes number of correct, added, removed, replaced words in
+        the difflib differ list and computes the list of replaced words detected 
+        Used in self.compute_features()
+        """
+        counter = 0
+        errors_dict = {'prompt': [], 'transcript': []}
+        skip_next = 0
+        n = len(differ_list)
+        add = 0
+        sub = 0
+        for i, word in enumerate(differ_list):
+            if skip_next > 0:
+                skip_next -= 1
+                pass  # when the word has already been added to the error dict
+            if word[0] == " ":
+                counter += 1  # + 1 if word correct 
+            elif i < n - 2:  # keep track of errors and classify them later
+                if word[0] == "+":
+                    add += 1
+                elif word[0] == "-":
+                    sub += 1
+                j = 1
+                while i+j < n and differ_list[i + j][0] == "?":  # account for ? in skip_next
+                    j += 1
+                plus_minus = (word[0] == "+" and differ_list[i + j][0] == "-")
+                minus_plus = (word[0] == "-" and differ_list[i + j][0] == "+")
+                skip_next = (plus_minus or minus_plus) * j
+                if plus_minus:
+                    errors_dict['prompt'] += [word.replace("+ ", "")]
+                    errors_dict['transcript'] += [differ_list[i + j].replace("- ", "")]
+                elif minus_plus:
+                    errors_dict['prompt'] += [word.replace("- ", "")]
+                    errors_dict['transcript'] += [differ_list[i + j].replace("+ ", "")]
+        replaced = len(errors_dict['prompt'])
+        return counter, add, sub, replaced, errors_dict
+
+    @staticmethod
+    def avg_length_of_words(s, sep = " "):
+        """ takes a string s and gives the avg length of words in it
+        """
+        s = s.split(sep)
+        n = len(s)
+        if n == 0:
+            return 0
+        return sum(len(word) for word in s) / n
 
     def compute_features(self, inplace = False):
         """ compute differ list with difflib, then count words and add feautres for wcpm estimation
@@ -222,7 +222,7 @@ class Dataset():
                                             inplace = False
                                             )
         logging.info("Calculating features")
-        temp = diff_list.apply(lambda x: get_errors_dict(x))
+        temp = diff_list.apply(lambda x: self.get_errors_dict(x))
         temp = pd.DataFrame(temp.to_list(), columns = ["correct_words",
                                                         "added_words",
                                                         "removed_words",
@@ -231,8 +231,8 @@ class Dataset():
                                                     ])
         temp.drop(columns = ['errors_dict'], inplace = True)
         temp['asr_word_count'] = self.data[self.asr_col].apply(lambda x: len(x.split()))
-        temp['prompt_avg_word_length'] = self.data[self.prompt_col].apply(lambda x: avg_length_of_words(x))
-        temp['asr_avg_word_length'] = self.data[self.asr_col].apply(lambda x: avg_length_of_words(x))
+        temp['prompt_avg_word_length'] = self.data[self.prompt_col].apply(lambda x: self.avg_length_of_words(x))
+        temp['asr_avg_word_length'] = self.data[self.asr_col].apply(lambda x: self.avg_length_of_words(x))
         if self.mode == 'train':
             temp['human_wc'] = self.data['human_wcpm'].mul(self.data[self.duration_col] / 60, fill_value = 0)
         self.features = temp
@@ -240,6 +240,10 @@ class Dataset():
             return self.features
 
     def determine_outliers_mask(self, tol = .2):
+        """ For train mode, determine what rows have a too big difference 
+        between human and asr transcript length to be taken into account
+        Input: tol: % of diff between len(asr_transcript) adn len(human_transcript) above which the row is considered an outlier
+        """
         def determine_outlier(row, tol):
             len_h = len(str(row[self.human_col]).split())
             len_a = len(str(row[self.asr_col]).split()) 
@@ -268,9 +272,6 @@ class Dataset():
                                                         ) 
         stats['wcpm_estimation_abs_error_%'] = stats['wcpm_estimation_error_%'].abs()
         return stats
-
-
-
 
 
 if __name__ == "__main__":

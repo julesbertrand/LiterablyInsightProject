@@ -13,7 +13,7 @@ from num2words import num2words  # preprocessing
 import string # preprocessing punctuation
 
 from literacy_score.grading_utils import open_file, save_file
-from literacy_score.grading_utils import compare_text, get_errors_dict, avg_length_of_words, Dataset
+from literacy_score.grading_utils import Dataset
 from literacy_score.config import DATA_PATH, MODELS_PATH, DEFAULT_MODEL, PREPROCESSING_STEPS
 
 # Logging
@@ -25,6 +25,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
+# main function
 def grade_wcpm(df):
     data = DataGrader(df)
     return data.grade_wcpm()
@@ -34,8 +35,7 @@ class DataGrader():
                 df, 
                 prompt_col = 'prompt', 
                 asr_col = 'asr_transcript', 
-                duration_col = 'scored_duration', 
-                model = 'XGB',
+                duration_col = 'scored_duration',
                 model_file = ''
                 ):
         self.data = Dataset(df,
@@ -59,9 +59,12 @@ class DataGrader():
         return model
 
     def set_model(self, model_name):
+        """ Change model to another one
+        input: model_name: 'RF' or 'XGB'
+        """
         if self.model_name == model_name:
-            pass
-        else:
+            pass  # no changes if same model wanted
+        else:  # to be improved
             if model_name == "RF":
                 self.model = self.__load_model('rf_hypertuned.pkl')
                 self.model_name = model_name
@@ -72,6 +75,8 @@ class DataGrader():
                 logging.error("No such model is available: %s in %s. please choose between 'RF' and 'XGB'", model_name, MODELS_PATH)
 
     def grade_wcpm(self):
+        """ preprocess, compute features and give grade all in one function
+        """
         self.data.preprocess_data(**PREPROCESSING_STEPS,
                             inplace = True
                             )
