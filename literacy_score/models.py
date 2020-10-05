@@ -2,9 +2,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import itertools
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor 
+from sklearn.neighbors import KNeighborsRegressor
 from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import make_scorer 
@@ -15,18 +17,14 @@ from literacy_score.config import MODELS_PATH, PREPROCESSING_STEPS, SEED, DEFAUL
 class ModelTrainer():
     def __init__(self,
                 df, 
-                model_name = DEFAULT_MODEL,
+                model_type = DEFAULT_MODEL,
                 prompt_col = 'prompt', 
                 asr_col = 'asr_transcript',
                 human_col = 'human_transcript',
                 duration_col = 'scored_duration',
                 human_wcpm_col = 'human_wcpm'
                 ):
-        self.model_name = model_name
-        if self.model_name == 'RF':
-            self.model = RandomForestRegressor(random_state=SEED)
-        elif self.model_name == 'XGB':
-            self.model = XGBRegressor(random_state=SEED)
+        self.set_new_model(model_type)
         self.data = Dataset(df,
                             prompt_col = 'prompt', 
                             asr_col = 'asr_transcript',
@@ -35,6 +33,23 @@ class ModelTrainer():
                             human_wcpm_col = 'human_wcpm',
                             mode = 'train'
                             )
+    
+    def set_new_model(self, model_type, params = {}):
+        if model_type == 'RF':
+            self.model = RandomForestRegressor(random_state=SEED)
+        elif model_type == 'XGB':
+            self.model = XGBRegressor(random_state=SEED)
+        elif model_type == 'KNN':
+            self.model = KNeighborsRegressor()
+        else:
+            logger.error("Sorry, training for mode_type %s has not been implemented yet.", model_type)
+            return
+        self.model_type = model_type
+        if params != {}:
+            self.set_model_params(params)
+    
+    def set_model_params(self, params = {}):
+        self.model.set_params(**params)
 
     def save_model(self, scaler = False, model = False, replace = False):
         """ Save both scaler and trained / untrained model
@@ -51,7 +66,7 @@ class ModelTrainer():
         if model:
             save_file(self.model,
                     path = MODELS_PATH,
-                    file_name = self.model_name + '.joblib',
+                    file_name = self.model_type + '.joblib',
                     replace = replace
                     )
 
@@ -61,13 +76,16 @@ class ModelTrainer():
                             )
         self.features = self.data.compute_features(inplace = False)  # created df self.features
 
-    def train(self):
-        logger.info("Training %s", self.model_name)
+    def train(self, params = {}):
+        self.model.set_params(**params)
         try:
-            self.model = self.model.fit(self.X_train, self.Y_train)
+            self.X_train
         except AttributeError:
             logger.error("X_train, Y_train not defined: Please prepare train and test \
                         set before training by calling ModelTrainer.prepare_train_test_set()")
+            return
+        logger.info("Training %s", self.model_type)
+        self.model = self.model.fit(self.X_train, self.Y_train)
 
     def prepare_train_test_set(self,
                             remove_outliers = False,
@@ -104,33 +122,66 @@ class ModelTrainer():
     def evaluate_model(self, visualize = True):
         Y_pred = self.model.predict(self.X_test)
         stats = self.data.compute_stats(Y_pred, self.test_idx)
-        print("avg diff between human and asr wcpm: ",
-                stats['wcpm_estimation_error'].mean(axis=0).round(2))
-        print("std of diff between human and asr wcpm: ",
-                stats['wcpm_estimation_error'].std(axis=0).round(2))
-        print("\n")
-        print("avg abs diff between human and asr wcpm: ",
-                stats['wcpm_estimation_abs_error'].abs().mean(axis=0).round(2))
-        print("std of abs diff between human and asr wcpm: ", 
-                stats['wcpm_estimation_abs_error'].abs().std(axis=0).round(2))
-        print("\n")
-        print("avg abs diff in % between human and asr wcpm: ", 
-                stats['wcpm_estimation_abs_error_%'].mean(axis=0).round(4) * 100)
-        print("std of abs diff in % between human and asr wcpm: ", 
-                stats['wcpm_estimation_abs_error_%'].std(axis=0).round(4) * 100)
+        stats_summary = pd.DataFrame(
+            data = {
+                'Mean Error': [
+                    stats['wcpm_estimation_error'].mean(axis=0).round(2),
+                    stats['wcpm_estimation_error'].std(axis=0).round(2)
+                ],
+                'Mean Error %': [
+                    stats['wcpm_estimation_error_%'].mean(axis=0).round(2),
+                    stats['wcpm_estimation_error_%'].std(axis=0).round(2)
+                ],
+                'Mean abs. Error': [
+                    stats['wcpm_estimation_abs_error'].abs().mean(axis=0).round(2),
+                    stats['wcpm_estimation_abs_error'].abs().std(axis=0).round(2)
+                ],
+                'Mean abs. Error %': [
+                    stats['wcpm_estimation_abs_error_%'].mean(axis=0).round(4) * 100,
+                    stats['wcpm_estimation_abs_error_%'].std(axis=0).round(4) * 100
+                ],
+                'RMSE': [
+                    round(np.sqrt((stats['wcpm_estimation_error'] ** 2).mean(axis = 0)), 2),
+                    round(np.sqrt((stats['wcpm_estimation_error'] ** 2).std(axis = 0)), 2)
+                ],
+            },
+            index = ['mean', 'std']
+        )
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+            print('\n')
+            print(stats_summary)
+            print('\n')
         if visualize:
             plt.style.use("seaborn-darkgrid")
-            plt.figure(figsize = (16, 6))
-            sns.displot(x=stats['wcpm_estimation_error_%'], color=sns.color_palette()[0])
-            plt.title("Distribution of errors %", fontsize=16)
+            sns.displot(x=stats['wcpm_estimation_error_%'], height=4, aspect = 3)
+            plt.title("Distribution of errors %", fontsize=20, fontweight='bold')
+            plt.xlabel('wcpm_estimation_error_%', fontsize = 16)
+            plt.ylabel('count', fontsize = 16)
             plt.show()
-        return stats
+        return stats, stats_summary
 
     def grid_search(self, cv_params, cv_folds = 5, verbose = 2, scoring_metric = 'r2'):
-        if self.model_name == 'RF':
+        if self.model_type == 'RF':
             estimator = RandomForestRegressor(random_state = SEED)
-        elif self.model_name == 'XGB':
+        elif self.model_type == 'XGB':
             estimator = XGBRegressor(random_state = SEED)
+        elif self.model_type == 'KNN':
+            estimator = KNeighborsRegressor()
+
+        print("\n" + " Estimator: ".center(120, "-"))
+        print(estimator.__class__.__name__)
+        print("\n" + " Metric for evaluation: ".center(120, "-"))
+        print(scoring_metric)
+        print("\n" + " Params to be tested: ".center(120, "-"))
+        [print(key, value) for key, value in cv_params.items()]
+        params_list = list(itertools.product(*cv_params.values()))
+        n_combi = len(params_list)
+        print("\n" + " # of possible combinations to be cross-validated: {:d}".format(n_combi))
+        answer = input("\n" + "Continue with these c-v parameters ? (y/n)  ")
+        if answer == "n" or answer == "no":
+            print("Please redefine inputs.")
+            return
+
         grid_search = GridSearchCV(estimator = estimator,
                                     param_grid = cv_params, 
                                     scoring = scoring_metric,
@@ -149,11 +200,12 @@ class ModelTrainer():
     def plot_grid_search(self, cv_results, x, hue=None, y='mean_test_score', log_scale=True):
         # Get Test Scores Mean and std for each grid search
         cv_results = pd.DataFrame(cv_results)
-        hue = 'param_' + hue
+        if hue is not None:
+            hue = 'param_' + hue
         x = 'param_' + x
         # Plot Grid search scores
         plt.style.use("seaborn-darkgrid")
-        _, ax = plt.subplots(1,1, figsize = (12, 8))
+        _, ax = plt.subplots(1,1, figsize = (16, 6))
 
         # Param1 is the X-axis, Param 2 is represented as a different curve (color line)
         sns.lineplot(data=cv_results, x=x, y=y, hue=hue, palette='Set2')
@@ -162,7 +214,8 @@ class ModelTrainer():
         ax.set_xlabel(x, fontsize=16)
         ax.set_ylabel('CV Average Score', fontsize=16)
         ax.legend(loc="best", fontsize=15)
-        ax.set_xscale('log')
+        if log_scale:
+            ax.set_xscale('log')
         ax.grid('on')
         plt.show()
 
@@ -180,24 +233,24 @@ class ModelTrainer():
         idx = np.argsort(importance)[::-1]
 
         plt.style.use("seaborn-darkgrid")
-        plt.figure(figsize = (8, max(8, 0.2 * len(idx))))
+        _, ax = plt.subplots(1, 1, figsize=(8, max(8, 0.2 * len(idx))))
         sns.barplot(x=importance[idx], y=labels[idx], color=sns.color_palette()[0])
         for i, val in enumerate(importance[idx]):
-            plt.text(val + 0.01, i, s="{:.3f}".format(val), ha='left', va='center')
-        plt.title("Feature importance for current model", fontsize=16)
-        plt.xticks(fontsize=14)
-        plt.gca().set_xlim(0, max(importance[idx]) + 0.03)
+            ax.text(val + 0.01, i, s="{:.3f}".format(val), ha='left', va='center')
+        ax.set_title("Feature importance for current model", fontsize=16)
+        ax.set_xticks(fontsize=14)
+        ax.set_xlim(0, max(importance[idx]) + 0.03)
         plt.show()
 
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_more.csv")
     # print(df.head())
     df = df.loc[:50]
-    trainer = ModelTrainer(df, model_name = "XGB")
+    trainer = ModelTrainer(df, model_type = "XGB")
     trainer.compute_features()
     trainer.prepare_train_test_set(remove_outliers = True, outliers_tol = .1)
-    trainer.train()
-    trainer.feature_importance()
+    trainer.train(params = {})
+    # trainer.feature_importance()
     # trainer.save_model(scaler = True, model = False)
     # gd = trainer.grid_search(cv_params={'learning_rate': [0.05, 0.1, 0.3],
     #                                     'n_estimators': list(np.arange(10, 500, 20))
@@ -205,4 +258,4 @@ if __name__ == "__main__":
     #                         cv_folds=5,
     #                         scoring_metric = 'neg_mean_squared_log_error')
     # trainer.plot_grid_search(gd.cv_results_, x='n_estimators', hue='learning_rate')
-    # trainer.evaluate_model(visualize = False)
+    trainer.evaluate_model(visualize = True)
