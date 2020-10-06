@@ -253,8 +253,12 @@ class Dataset():
     def determine_outliers_mask(self, tol = .2):
         """ For train mode, determine what rows have a too big difference 
         between human and asr transcript length to be taken into account
-        Input: tol: % of diff between len(asr_transcript) adn len(human_transcript) above which the row is considered an outlier
+        Input: tol: % of diff between len(asr_transcript) adn len(human_transcript) \
+                    above which the row is considered an outlier
         """
+        if self.mode != 'train':
+            logger.error("You need to be in 'train' mode to determine outliers. 'predict' was passed.")
+            return
         def determine_outlier(row, tol):
             len_h = len(str(row[self.human_col]).split())
             len_a = len(str(row[self.asr_col]).split()) 
@@ -270,7 +274,8 @@ class Dataset():
                         test_idx: index of test set in all data 
         """
         if self.mode != 'train':
-            logger.error("You need to be in train mode to compute statistics about the wcpm estimation.")
+            logger.error("You need to be in 'train' mode to compute statistics about the wcpm estimation.\
+                 'predict was passed")
             return
         stats = pd.DataFrame(Y_pred, columns = ['asr_wc_estimation'], index = test_idx)
         stats['human_wcpm'] = self.data[self.human_wcpm_col].loc[test_idx]
