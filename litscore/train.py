@@ -137,6 +137,9 @@ class ModelTrainer():
         # computing mean and std of stats for each bin
         stats_summary = stats.groupby('wcpm_bin').agg(['mean', 'std'])
         stats_summary.drop(columns=['asr_wc_estimation', 'human_wcpm', 'wcpm_estimation'], inplace=True)
+        cols = ['wcpm_estimation_error_%', 'wcpm_estimation_abs_error_%']
+        cols = list(itertools.product(cols, ['mean', 'std']))  # computing (level 1, level 2) col names
+        stats_summary[cols] = stats_summary[cols] * 100
         stats_summary = stats_summary.applymap(lambda x: round(x, 2))
         # computing # of error > 1%, 5%, 10% per bin 
         d = {'Total Count': 0,
@@ -147,7 +150,7 @@ class ModelTrainer():
         for k, v in d.items():
             stats[k] = stats['wcpm_estimation_abs_error_%'] > v
         errors_summary = stats[list(d.keys()) + ['wcpm_bin']].groupby('wcpm_bin')
-        errors_summary = errors_summary.agg(['sum', lambda x: round(100 * np.sum(x) / n, 2)])
+        errors_summary = errors_summary.agg(['sum', lambda x: round(100 * np.sum(x) / n, 1)])
         errors_summary.columns.set_levels(['count', '% of test set'], level=1, inplace=True)
         if visualize:
             self.plot_wcpm_distribution(stats=stats,
@@ -289,7 +292,7 @@ class ModelTrainer():
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_more.csv")
     # print(df.head())
-    # df = df.loc[:50]
+    df = df.loc[:50]
     trainer = ModelTrainer(df, model_type = "XGB")
     trainer.compute_features()
     trainer.prepare_train_test_set(remove_outliers = True, outliers_tol = .1)
