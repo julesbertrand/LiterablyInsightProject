@@ -130,35 +130,49 @@ class ModelTrainer():
     def evaluate_model(self, visualize = True):
         Y_pred = self.model.predict(self.X_test)
         stats = self.data.compute_stats(Y_pred, self.test_idx)
+        n = len(self.test_idx)
         stats_summary = pd.DataFrame(
             data = {
                 'Mean Error': [
                     stats['wcpm_estimation_error'].mean(axis=0).round(2),
-                    stats['wcpm_estimation_error'].std(axis=0).round(2)
+                    stats['wcpm_estimation_error'].std(axis=0).round(2),
+                    None, None
                 ],
                 'Mean Error %': [
                     stats['wcpm_estimation_error_%'].mean(axis=0).round(2),
-                    stats['wcpm_estimation_error_%'].std(axis=0).round(2)
+                    stats['wcpm_estimation_error_%'].std(axis=0).round(2),
+                    None, None
                 ],
                 'Mean abs. Error': [
                     stats['wcpm_estimation_abs_error'].abs().mean(axis=0).round(2),
-                    stats['wcpm_estimation_abs_error'].abs().std(axis=0).round(2)
+                    stats['wcpm_estimation_abs_error'].abs().std(axis=0).round(2),
+                    None, None
                 ],
                 'Mean abs. Error %': [
                     stats['wcpm_estimation_abs_error_%'].mean(axis=0).round(4) * 100,
-                    stats['wcpm_estimation_abs_error_%'].std(axis=0).round(4) * 100
+                    stats['wcpm_estimation_abs_error_%'].std(axis=0).round(4) * 100,
+                    None, None
                 ],
                 'RMSE': [
                     round(np.sqrt((stats['wcpm_estimation_error'] ** 2).mean(axis = 0)), 2),
-                    round(np.sqrt((stats['wcpm_estimation_error'] ** 2).std(axis = 0)), 2)
+                    round(np.sqrt((stats['wcpm_estimation_error'] ** 2).std(axis = 0)), 2),
+                    None, None
                 ],
+                'Error > 1%': [None, None,
+                    (stats['wcpm_estimation_abs_error_%'] > 0.01).sum().round(0),
+                    round((stats['wcpm_estimation_abs_error_%'] > 0.01).sum() / n, 4) * 100
+                ],
+                'Error > 5%': [None, None,
+                    (stats['wcpm_estimation_abs_error_%'] > 0.05).sum().round(0),
+                    round((stats['wcpm_estimation_abs_error_%'] > 0.05).sum() / n, 4) * 100
+                ],
+                'Error > 10%': [None, None,
+                    (stats['wcpm_estimation_abs_error_%'] > 0.1).sum().round(0),
+                    round((stats['wcpm_estimation_abs_error_%'] > 0.1).sum() / n, 4) * 100
+                ]
             },
-            index = ['mean', 'std']
+            index = ['mean', 'std', 'absolute #', '% of test set']
         )
-        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-            print('\n')
-            print(stats_summary)
-            print('\n')
         if visualize:
             self.plot_wcpm_distribution(stats=stats,
                                         x='wcpm_estimation_error_%',
@@ -270,7 +284,7 @@ class ModelTrainer():
     @staticmethod
     def plot_wcpm_distribution(stats, x, stat='count', binwidth = .01):
         plt.style.use("seaborn-darkgrid")
-        _, ax = plt.subplots(1, 1,figsize = (10, 4))
+        _, ax = plt.subplots(1, 1,figsize = (16, 6))
         sns.histplot(ax=ax,
                         data=stats,
                         x=x,
@@ -279,7 +293,8 @@ class ModelTrainer():
                     )
         ax.set_title("Distribution of errors",fontsize=20, fontweight='bold')
         ax.set_xlabel(x, fontsize=16)
-        ax.xaxis.set_major_formatter(mtick.PercentFormatter(1.0))
+        if '%' in x:
+            ax.xaxis.set_major_formatter(mtick.PercentFormatter(1.0))
         ax.set_ylabel('count', fontsize=16)
         plt.show()
 
@@ -291,7 +306,8 @@ class ModelTrainer():
         ax.set_title('Graph of %s' % y, fontsize=20, fontweight='bold')
         ax.set_xlabel('human wcpm', fontsize=16)
         ax.set_ylabel(y, fontsize=16)
-        ax.yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
+        if '%' in y:
+            ax.yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
 
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_more.csv")
@@ -310,4 +326,5 @@ if __name__ == "__main__":
                             scoring_metric = 'r2')
     # trainer.plot_grid_search(gd.cv_results_, x='n_estimators', hue=None)
     # trainer.feature_importance()
-    trainer.evaluate_model(visualize = True)
+    stats, summary = trainer.evaluate_model(visualize = True)
+    print(summary)
