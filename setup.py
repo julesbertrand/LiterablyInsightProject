@@ -5,7 +5,7 @@ setup(
     author="Jules Bertrand",
     author_email="julesbertrand13@gmail.com",
     url="https://github.com/julesbertrand/literacy-assessment-insight-project.git",
-    packages=["literacy_score"],
+    packages=["litscore"],
     install_requires = [
       'numpy',
       'pandas',
