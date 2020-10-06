@@ -4,9 +4,9 @@ import errno
 import numpy as np
 import pandas as pd
 
-from literacy_score.utils import logger, save_file, open_file, BaselineModel
-from literacy_score.dataset import Dataset
-from literacy_score.config import MODELS_PATH, DEFAULT_MODEL_TYPE, PREPROCESSING_STEPS, DEFAULT_MODEL_FILES
+from litscore.utils import logger, save_file, open_file, BaselineModel
+from litscore.dataset import Dataset
+from litscore.config import MODELS_PATH, DEFAULT_MODEL_TYPE, PREPROCESSING_STEPS, DEFAULT_MODEL_FILES
 
 # main function
 def grade_wcpm(df):

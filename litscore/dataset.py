@@ -7,8 +7,8 @@ from num2words import num2words  # preprocessing
 import string  # preprocessing punctuation
 import difflib  # text comparison
 
-from literacy_score.config import DATA_PATH, MODELS_PATH
-from literacy_score.utils import logger, save_file, open_file, BaselineModel
+from litscore.config import DATA_PATH, MODELS_PATH
+from litscore.utils import logger, save_file, open_file, BaselineModel
 
 class Dataset():
     def __init__(self,

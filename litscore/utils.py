@@ -10,7 +10,7 @@ import seaborn as sns
 
 import joblib
 
-from literacy_score.config import DATA_PATH, MODELS_PATH
+from litscore.config import DATA_PATH, MODELS_PATH
 
 # Logging
 logger = logging.getLogger()
