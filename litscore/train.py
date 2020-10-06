@@ -130,56 +130,32 @@ class ModelTrainer():
     def evaluate_model(self, visualize = True):
         Y_pred = self.model.predict(self.X_test)
         stats = self.data.compute_stats(Y_pred, self.test_idx)
+        # creating 3 groups of datapoints based on human_wcpm
+        assign_wcpm_bin = lambda x: '<75' if x<75 else ('75-150' if x<150 else '150+')
+        stats['wcpm_bin'] = stats['human_wcpm'].apply(assign_wcpm_bin)
         n = len(self.test_idx)
-        stats_summary = pd.DataFrame(
-            data = {
-                'Mean Error': [
-                    stats['wcpm_estimation_error'].mean(axis=0).round(2),
-                    stats['wcpm_estimation_error'].std(axis=0).round(2),
-                    None, None
-                ],
-                'Mean Error %': [
-                    stats['wcpm_estimation_error_%'].mean(axis=0).round(2),
-                    stats['wcpm_estimation_error_%'].std(axis=0).round(2),
-                    None, None
-                ],
-                'Mean abs. Error': [
-                    stats['wcpm_estimation_abs_error'].abs().mean(axis=0).round(2),
-                    stats['wcpm_estimation_abs_error'].abs().std(axis=0).round(2),
-                    None, None
-                ],
-                'Mean abs. Error %': [
-                    stats['wcpm_estimation_abs_error_%'].mean(axis=0).round(4) * 100,
-                    stats['wcpm_estimation_abs_error_%'].std(axis=0).round(4) * 100,
-                    None, None
-                ],
-                'RMSE': [
-                    round(np.sqrt((stats['wcpm_estimation_error'] ** 2).mean(axis = 0)), 2),
-                    round(np.sqrt((stats['wcpm_estimation_error'] ** 2).std(axis = 0)), 2),
-                    None, None
-                ],
-                'Error > 1%': [None, None,
-                    (stats['wcpm_estimation_abs_error_%'] > 0.01).sum().round(0),
-                    round((stats['wcpm_estimation_abs_error_%'] > 0.01).sum() / n, 4) * 100
-                ],
-                'Error > 5%': [None, None,
-                    (stats['wcpm_estimation_abs_error_%'] > 0.05).sum().round(0),
-                    round((stats['wcpm_estimation_abs_error_%'] > 0.05).sum() / n, 4) * 100
-                ],
-                'Error > 10%': [None, None,
-                    (stats['wcpm_estimation_abs_error_%'] > 0.1).sum().round(0),
-                    round((stats['wcpm_estimation_abs_error_%'] > 0.1).sum() / n, 4) * 100
-                ]
-            },
-            index = ['mean', 'std', 'absolute #', '% of test set']
-        )
+        # computing mean and std of stats for each bin
+        stats_summary = stats.groupby('wcpm_bin').agg(['mean', 'std'])
+        stats_summary.drop(columns=['asr_wc_estimation', 'human_wcpm', 'wcpm_estimation'], inplace=True)
+        stats_summary = stats_summary.applymap(lambda x: round(x, 2))
+        # computing # of error > 1%, 5%, 10% per bin 
+        d = {'Total Count': 0,
+             'Error > 1%': .01,
+             'Error > 5%': .05,
+             'Error > 10%': .1
+            }
+        for k, v in d.items():
+            stats[k] = stats['wcpm_estimation_abs_error_%'] > v
+        errors_summary = stats[list(d.keys()) + ['wcpm_bin']].groupby('wcpm_bin')
+        errors_summary = errors_summary.agg(['sum', lambda x: round(100 * np.sum(x) / n, 2)])
+        errors_summary.columns.set_levels(['count', '% of test set'], level=1, inplace=True)
         if visualize:
             self.plot_wcpm_distribution(stats=stats,
                                         x='wcpm_estimation_error_%',
                                         stat='count',
                                         binwidth=.01
                                        )
-        return stats, stats_summary
+        return stats, stats_summary, errors_summary
 
     def grid_search(self,
                     model_type,
@@ -308,23 +284,25 @@ class ModelTrainer():
         ax.set_ylabel(y, fontsize=16)
         if '%' in y:
             ax.yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
+        plt.show()
 
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_more.csv")
     # print(df.head())
     # df = df.loc[:50]
-    trainer = ModelTrainer(df, model_type = "Baseline")
+    trainer = ModelTrainer(df, model_type = "XGB")
     trainer.compute_features()
     trainer.prepare_train_test_set(remove_outliers = True, outliers_tol = .1)
-    # trainer.train(params = {})
+    trainer.train(params = {})
     # trainer.save_model(scaler = True, model = False)
-    gd = trainer.grid_search(model_type = 'XGB',
-                             cv_params={'learning_rate': [0.05],
-                                        # 'n_estimators': list(np.arange(100, 500, 100))
-                                        },
-                            cv_folds=5,
-                            scoring_metric = 'r2')
+    # gd = trainer.grid_search(model_type = 'XGB',
+    #                          cv_params={'learning_rate': [0.05],
+    #                                     # 'n_estimators': list(np.arange(100, 500, 100))
+    #                                     },
+    #                         cv_folds=5,
+    #                         scoring_metric = 'r2')
     # trainer.plot_grid_search(gd.cv_results_, x='n_estimators', hue=None)
     # trainer.feature_importance()
-    stats, summary = trainer.evaluate_model(visualize = True)
-    print(summary)
+    stats, stats_sum, error_sum = trainer.evaluate_model(visualize = True)
+    print(stats_sum)
+    print(error_sum)

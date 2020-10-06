@@ -2,7 +2,7 @@
 
 """Package paths - Please update before installation!"""
 # a path to a folder in which models are saved
-MODELS_PATH = './litscore/models/'
+MODELS_PATH = './literacy_score/models/'
 # a path to a folder in which data is saved by default
 DATA_PATH = './data/'
 # test data path
