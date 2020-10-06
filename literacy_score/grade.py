@@ -4,8 +4,6 @@ import errno
 import numpy as np
 import pandas as pd
 
-import joblib
-
 from literacy_score.utils import logger, save_file, open_file, BaselineModel
 from literacy_score.dataset import Dataset
 from literacy_score.config import MODELS_PATH, DEFAULT_MODEL_TYPE, PREPROCESSING_STEPS, DEFAULT_MODEL_FILES
@@ -52,7 +50,11 @@ class DataGrader(Dataset):
             elif model_type == 'Baseline':
                 self.model = BaselineModel()
             else:
-                logger.error("No such model is available: %s in %s. please choose between 'Baseline', 'RF', 'XGB' and 'KNN'.", model_type, MODELS_PATH)
+                logger.error("No such model is available: %s in %s. \
+                            please choose between 'Baseline', 'RF', 'XGB' and 'KNN'.",
+                            model_type,
+                            MODELS_PATH
+                            )
                 return
             self.model_type = model_type
 
@@ -62,7 +64,7 @@ class DataGrader(Dataset):
         self.preprocess_data(**PREPROCESSING_STEPS,
                             inplace = True
                             )
-        self.features = self.compute_features(inplace = False)  # created df self.features
+        self.features = self.compute_features(inplace = False)
         self.estimate_wcpm(inplace = True)
         return self.get_data()
 

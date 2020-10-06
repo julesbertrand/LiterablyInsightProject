@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 import seaborn as sns
 import itertools
 
@@ -35,19 +36,22 @@ class ModelTrainer():
                             mode = 'train'
                             )
     
-    def set_new_model(self, model_type, params = {}):
+    def set_new_model(self, model_type, params = {}, inplace = True):
         if model_type == 'RF':
-            self.model = RandomForestRegressor(random_state=SEED)
+            estimator = RandomForestRegressor(random_state=SEED)
         elif model_type == 'XGB':
-            self.model = XGBRegressor(random_state=SEED)
+            estimator = XGBRegressor(random_state=SEED)
         elif model_type == 'KNN':
-            self.model = KNeighborsRegressor()
+            estimator = KNeighborsRegressor()
         elif model_type == 'Baseline':
-            self.model = BaselineModel()
+            estimator = BaselineModel()
         else:
             logger.error("Sorry, training for mode_type %s has not been implemented yet.", model_type)
             return
         self.model_type = model_type
+        if not inplace:
+            return estimator.set_params(**params)
+        self.model = estimator
         if params != {}:
             self.set_model_params(params)
     
@@ -157,28 +161,43 @@ class ModelTrainer():
             print('\n')
         if visualize:
             plt.style.use("seaborn-darkgrid")
-            sns.displot(x=stats['wcpm_estimation_error_%'], height=4, aspect = 3)
-            plt.title("Distribution of errors %", fontsize=20, fontweight='bold')
-            plt.xlabel('wcpm_estimation_error_%', fontsize = 16)
-            plt.ylabel('count', fontsize = 16)
+            _, ax = plt.subplots(1, 1,figsize = (10, 4))
+            sns.distplot(ax=ax, x=stats['wcpm_estimation_error_%'])
+            ax.set_title("Distribution of errors", fontsize=20, fontweight='bold')
+            ax.set_xlabel('wcpm_estimation_error_%', fontsize=16)
+            ax.xaxis.set_major_formatter(mtick.PercentFormatter(1.0))
+            ax.set_ylabel('count', fontsize=16)
             plt.show()
         return stats, stats_summary
 
-    def grid_search(self, cv_params, cv_folds = 5, verbose = 2, scoring_metric = 'r2'):
-        if self.model_type == 'RF':
-            estimator = RandomForestRegressor(random_state = SEED)
-        elif self.model_type == 'XGB':
-            estimator = XGBRegressor(random_state = SEED)
-        elif self.model_type == 'KNN':
-            estimator = KNeighborsRegressor()
-
+    def grid_search(self,
+                    model_type,
+                    cv_params, 
+                    cv_folds = 5, 
+                    verbose = 2, 
+                    scoring_metric = 'r2'
+                   ):
+        params = dict()  # for params in cv_params with unique value, set directly to estimator
+        params_grid = dict()  # for params to be actually cross-validated
+        for key, value in cv_params.items():
+            if len(value) == 1:
+                params[key] = value[0]
+            else:
+                params_grid[key] = value
+        estimator = self.set_new_model(model_type=model_type,
+                                       params = params,
+                                       inplace = False
+                                      )
         print("\n" + " Estimator: ".center(120, "-"))
         print(estimator.__class__.__name__)
         print("\n" + " Metric for evaluation: ".center(120, "-"))
         print(scoring_metric)
+        if len(params.keys()) > 0:
+            print("\n" + " Fixed params: ".center(120, "-"))
+            [print(key, value) for key, value in params.items()]
         print("\n" + " Params to be tested: ".center(120, "-"))
-        [print(key, value) for key, value in cv_params.items()]
-        params_list = list(itertools.product(*cv_params.values()))
+        [print(key, value) for key, value in params_grid.items()]
+        params_list = list(itertools.product(*params_grid.values()))
         n_combi = len(params_list)
         print("\n" + " # of possible combinations to be cross-validated: {:d}".format(n_combi))
         answer = input("\n" + "Continue with these c-v parameters ? (y/n)  ")
@@ -187,7 +206,7 @@ class ModelTrainer():
             return
 
         grid_search = GridSearchCV(estimator = estimator,
-                                    param_grid = cv_params, 
+                                    param_grid = params_grid,
                                     scoring = scoring_metric,
                                     cv = cv_folds,
                                     n_jobs = -1, 
@@ -201,7 +220,13 @@ class ModelTrainer():
         self.model  = grid_search.best_estimator_
         return grid_search
 
-    def plot_grid_search(self, cv_results, x, hue=None, y='mean_test_score', log_scale=True):
+    def plot_grid_search(self,
+                         cv_results,
+                         x,
+                         hue=None,
+                         y='mean_test_score',
+                         log_scale=True
+                        ):
         # Get Test Scores Mean and std for each grid search
         cv_results = pd.DataFrame(cv_results)
         if hue is not None:
@@ -209,7 +234,7 @@ class ModelTrainer():
         x = 'param_' + x
         # Plot Grid search scores
         plt.style.use("seaborn-darkgrid")
-        _, ax = plt.subplots(1,1, figsize = (16, 6))
+        _, ax = plt.subplots(1,1, figsize = (10, 4))
 
         # Param1 is the X-axis, Param 2 is represented as a different curve (color line)
         sns.lineplot(data=cv_results, x=x, y=y, hue=hue, palette='Set2')
@@ -242,24 +267,34 @@ class ModelTrainer():
         for i, val in enumerate(importance[idx]):
             ax.text(val + 0.01, i, s="{:.3f}".format(val), ha='left', va='center')
         ax.set_title("Feature importance for current model", fontsize=16)
-        ax.set_xticks(fontsize=14)
         ax.set_xlim(0, max(importance[idx]) + 0.03)
         plt.show()
+
+    @staticmethod
+    def plot_wcpm_graph(stats, y = 'wcpm_estimation_error_%'):
+        plt.style.use("seaborn-darkgrid")
+        _, ax = plt.subplots(1, 1, figsize=(16, 6))
+        sns.scatterplot(data=stats, x='human_wcpm', y=y)
+        ax.set_xlabel('human wcpm', fontsize=16)
+        ax.set_ylabel(y, fontsize=16)
+        ax.yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
+        ax.set_title('Graph of %s' % y, fontsize=20, fontweight='bold')
 
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_more.csv")
     # print(df.head())
-    # df = df.loc[:50]
+    df = df.loc[:50]
     trainer = ModelTrainer(df, model_type = "Baseline")
     trainer.compute_features()
     trainer.prepare_train_test_set(remove_outliers = True, outliers_tol = .1)
-    trainer.train(params = {})
-    # trainer.feature_importance()
+    # trainer.train(params = {})
     # trainer.save_model(scaler = True, model = False)
-    # gd = trainer.grid_search(cv_params={'learning_rate': [0.05, 0.1, 0.3],
-    #                                     'n_estimators': list(np.arange(10, 500, 20))
-    #                                     },
-    #                         cv_folds=5,
-    #                         scoring_metric = 'neg_mean_squared_log_error')
-    # trainer.plot_grid_search(gd.cv_results_, x='n_estimators', hue='learning_rate')
+    gd = trainer.grid_search(model_type = 'XGB',
+                             cv_params={'learning_rate': [0.05],
+                                        'n_estimators': list(np.arange(10, 500, 20))
+                                        },
+                            cv_folds=5,
+                            scoring_metric = 'r2')
+    # trainer.plot_grid_search(gd.cv_results_, x='n_estimators', hue=None)
+    # trainer.feature_importance()
     trainer.evaluate_model(visualize = True)

@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
 
-import joblib
-
 import ast  # preprocessing ast to litteral
 import re  # preprocessing
 from num2words import num2words  # preprocessing 
@@ -68,7 +66,7 @@ class Dataset():
         df = self.data[columns].copy()
         if asr_string_recomposition:
             logger.debug("Recomposing ASR string from dict")
-            df = df.applymap(lambda x: ast.literal_eval(x))
+            df = df.applymap(ast.literal_eval)
             df = df.applymap(lambda x: " ".join([e['text'] for e in x]))
         if lowercase:
             logger.debug("Converting df to lowercase")
@@ -97,10 +95,13 @@ class Dataset():
 
     @staticmethod
     def compare_text(string_a, string_b, split_car = " "):
-        """ compare string a and b split by split_care, default split by word, remove text surplus at the end
+        """ compare string a and b split by split_care, default split by word,\
+            remove text surplus at the end
         Used in self.compute_differ_list()
         """
-        differ_list = difflib.Differ().compare(str(string_a).split(split_car), str(string_b).split(split_car))
+        differ_list = difflib.Differ().compare(str(string_a).split(split_car),
+                                               str(string_b).split(split_car)
+                                               )
         differ_list = list(differ_list)
         
         # if a lot characters at the end were added or removed from prompt
@@ -164,14 +165,17 @@ class Dataset():
         return counter, add, sub, replaced, errors_dict
 
     @staticmethod
-    def avg_length_of_words(s, sep = " "):
+    def stats_length_of_words(s, sep = " "):
         """ takes a string s and gives the avg length of words in it
         """
         s = s.split(sep)
         n = len(s)
         if n == 0:
             return 0
-        return sum(len(word) for word in s) / n
+        s = [len(word) for word in s]
+        mean = round(np.mean(s), 3)
+        std = round(np.std(s), 3)
+        return mean, std 
 
     def compute_features(self, inplace = False):
         """ compute differ list with difflib, then count words and add feautres for wcpm estimation
@@ -181,20 +185,34 @@ class Dataset():
                                             inplace = False
                                             )
         logger.debug("Computing features")
-        temp = diff_list.apply(lambda x: self.get_errors_dict(x))
-        temp = pd.DataFrame(temp.to_list(), columns = ["correct_words",
-                                                        "added_words",
-                                                        "removed_words",
-                                                        "replaced_words",
-                                                        "errors_dict"
-                                                    ])
-        temp.drop(columns = ['errors_dict'], inplace = True)
-        temp['asr_word_count'] = self.data[self.asr_col].apply(lambda x: len(x.split()))
-        temp['prompt_avg_word_length'] = self.data[self.prompt_col].apply(lambda x: self.avg_length_of_words(x))
-        temp['asr_avg_word_length'] = self.data[self.asr_col].apply(lambda x: self.avg_length_of_words(x))
+        temp = diff_list.apply(self.get_errors_dict)
+        features = pd.DataFrame(temp.to_list(), 
+                                columns = ["correct_words",
+                                           "added_words",
+                                           "removed_words",
+                                           "replaced_words",
+                                           "errors_dict"
+                                           ])
+        features.drop(columns = ['errors_dict'], inplace = True)
+        features['asr_word_count'] = self.data[self.asr_col].apply(lambda x: len(x.split()))
+        temp_prompt = self.data[self.prompt_col].apply(self.stats_length_of_words)
+        temp_prompt = pd.DataFrame(temp_prompt.to_list(),
+                                   columns = [
+                                       'prompt_avg_word_length',
+                                       'prompt_std_word_length'
+                                       ]
+                                  )
+        temp_asr = self.data[self.asr_col].apply(self.stats_length_of_words)
+        temp_asr = pd.DataFrame(temp_asr.to_list(),
+                                columns = [
+                                    'asr_avg_word_length', 
+                                    'asr_std_word_length'
+                                    ]
+                                )
+        features = pd.concat([features, temp_prompt, temp_asr], axis = 1)
         if self.mode == 'train':
-            temp['human_wc'] = self.data['human_wcpm'].mul(self.data[self.duration_col] / 60, fill_value = 0)
-        self.features = temp
+            features['human_wc'] = self.data['human_wcpm'].mul(self.data[self.duration_col] / 60, fill_value = 0)
+        self.features = features
         if not inplace:
             return self.features
 
@@ -240,8 +258,8 @@ class Dataset():
 
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_w_dur.csv")
-    d = Dataset(df)
+    d = Dataset(df.loc[:50])
     d.preprocess_data(inplace = True)
     d.compute_features(inplace = True)
-    print(d.determine_outliers_mask(tol = .1))
-    print(d.data.head(6))
+    # print(d.determine_outliers_mask(tol = .1))
+    print(d.features.head(6))
