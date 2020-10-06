@@ -160,14 +160,11 @@ class ModelTrainer():
             print(stats_summary)
             print('\n')
         if visualize:
-            plt.style.use("seaborn-darkgrid")
-            _, ax = plt.subplots(1, 1,figsize = (10, 4))
-            sns.distplot(ax=ax, x=stats['wcpm_estimation_error_%'])
-            ax.set_title("Distribution of errors", fontsize=20, fontweight='bold')
-            ax.set_xlabel('wcpm_estimation_error_%', fontsize=16)
-            ax.xaxis.set_major_formatter(mtick.PercentFormatter(1.0))
-            ax.set_ylabel('count', fontsize=16)
-            plt.show()
+            self.plot_wcpm_distribution(stats=stats,
+                                        x='wcpm_estimation_error_%',
+                                        stat='count',
+                                        binwidth=.01
+                                       )
         return stats, stats_summary
 
     def grid_search(self,
@@ -271,19 +268,35 @@ class ModelTrainer():
         plt.show()
 
     @staticmethod
-    def plot_wcpm_graph(stats, y = 'wcpm_estimation_error_%'):
+    def plot_wcpm_distribution(stats, x, stat='count', binwidth = .01):
+        plt.style.use("seaborn-darkgrid")
+        _, ax = plt.subplots(1, 1,figsize = (10, 4))
+        sns.histplot(ax=ax,
+                        data=stats,
+                        x=x,
+                        stat=stat,
+                        binwidth=binwidth
+                    )
+        ax.set_title("Distribution of errors",fontsize=20, fontweight='bold')
+        ax.set_xlabel(x, fontsize=16)
+        ax.xaxis.set_major_formatter(mtick.PercentFormatter(1.0))
+        ax.set_ylabel('count', fontsize=16)
+        plt.show()
+
+    @staticmethod
+    def plot_wcpm_scatter(stats, y = 'wcpm_estimation_error_%'):
         plt.style.use("seaborn-darkgrid")
         _, ax = plt.subplots(1, 1, figsize=(16, 6))
         sns.scatterplot(data=stats, x='human_wcpm', y=y)
+        ax.set_title('Graph of %s' % y, fontsize=20, fontweight='bold')
         ax.set_xlabel('human wcpm', fontsize=16)
         ax.set_ylabel(y, fontsize=16)
         ax.yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
-        ax.set_title('Graph of %s' % y, fontsize=20, fontweight='bold')
 
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_more.csv")
     # print(df.head())
-    df = df.loc[:50]
+    # df = df.loc[:50]
     trainer = ModelTrainer(df, model_type = "Baseline")
     trainer.compute_features()
     trainer.prepare_train_test_set(remove_outliers = True, outliers_tol = .1)
@@ -291,7 +304,7 @@ if __name__ == "__main__":
     # trainer.save_model(scaler = True, model = False)
     gd = trainer.grid_search(model_type = 'XGB',
                              cv_params={'learning_rate': [0.05],
-                                        'n_estimators': list(np.arange(10, 500, 20))
+                                        # 'n_estimators': list(np.arange(100, 500, 100))
                                         },
                             cv_folds=5,
                             scoring_metric = 'r2')
