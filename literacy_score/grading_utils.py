@@ -64,6 +64,23 @@ def save_file(file, path, file_name, replace=False):
     logger.info("Saved file %s in dir %s", file_name, path)
 
 
+class BaselineModel():
+    def __init__(self):
+        self.name = 'BaselineModel'
+
+    def fit(self, X_train, Y_train):
+        return self
+
+    def set_params(self, **params):
+        logger.info("No params to be set in Baseline model")
+    
+    def predict(self, X_test):
+        # prediction is the word correct count based on differ list
+        self.scaler = open_file(MODELS_PATH + 'standard_scaler.joblib')
+        unscaled = self.scaler.inverse_transform(X_test)
+        return unscaled[:, 0]
+
+
 class Dataset():
     def __init__(self,
                 df,

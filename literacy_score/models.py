@@ -11,13 +11,13 @@ from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import make_scorer 
 
-from literacy_score.grading_utils import open_file, save_file, logger, Dataset
-from literacy_score.config import MODELS_PATH, PREPROCESSING_STEPS, SEED, DEFAULT_MODEL
+from literacy_score.grading_utils import open_file, save_file, logger, Dataset, BaselineModel
+from literacy_score.config import MODELS_PATH, PREPROCESSING_STEPS, SEED, DEFAULT_MODEL_TYPES
 
 class ModelTrainer():
     def __init__(self,
                 df, 
-                model_type = DEFAULT_MODEL,
+                model_type = DEFAULT_MODEL_TYPE,
                 prompt_col = 'prompt', 
                 asr_col = 'asr_transcript',
                 human_col = 'human_transcript',
@@ -41,6 +41,8 @@ class ModelTrainer():
             self.model = XGBRegressor(random_state=SEED)
         elif model_type == 'KNN':
             self.model = KNeighborsRegressor()
+        elif model_type == 'Baseline':
+            self.model = BaselineModel()
         else:
             logger.error("Sorry, training for mode_type %s has not been implemented yet.", model_type)
             return
@@ -74,7 +76,8 @@ class ModelTrainer():
         self.data.preprocess_data(**PREPROCESSING_STEPS,
                             inplace = True
                             )
-        self.features = self.data.compute_features(inplace = False)  # created df self.features
+        # create dataframe of features
+        self.features = self.data.compute_features(inplace = False)  
 
     def train(self, params = {}):
         self.model.set_params(**params)
@@ -245,8 +248,8 @@ class ModelTrainer():
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_more.csv")
     # print(df.head())
-    df = df.loc[:50]
-    trainer = ModelTrainer(df, model_type = "XGB")
+    # df = df.loc[:50]
+    trainer = ModelTrainer(df, model_type = "Baseline")
     trainer.compute_features()
     trainer.prepare_train_test_set(remove_outliers = True, outliers_tol = .1)
     trainer.train(params = {})
