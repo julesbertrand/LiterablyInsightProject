@@ -6,12 +6,8 @@ import pandas as pd
 
 import joblib
 
-import ast  # preprocessing ast to litteral
-import re  # preprocessing
-from num2words import num2words  # preprocessing 
-import string # preprocessing punctuation
-
-from literacy_score.grading_utils import open_file, save_file, logger, Dataset, BaselineModel
+from literacy_score.utils import logger, save_file, open_file, BaselineModel
+from literacy_score.dataset import Dataset
 from literacy_score.config import MODELS_PATH, DEFAULT_MODEL_TYPE, PREPROCESSING_STEPS, DEFAULT_MODEL_FILES
 
 # main function

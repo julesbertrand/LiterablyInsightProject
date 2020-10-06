@@ -11,8 +11,9 @@ from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import make_scorer 
 
-from literacy_score.grading_utils import open_file, save_file, logger, Dataset, BaselineModel
-from literacy_score.config import MODELS_PATH, PREPROCESSING_STEPS, SEED, DEFAULT_MODEL_TYPES
+from literacy_score.utils import logger, save_file, open_file, BaselineModel
+from literacy_score.dataset import Dataset
+from literacy_score.config import MODELS_PATH, PREPROCESSING_STEPS, SEED, DEFAULT_MODEL_TYPE
 
 class ModelTrainer():
     def __init__(self,
