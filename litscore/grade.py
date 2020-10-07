@@ -64,7 +64,7 @@ class DataGrader(Dataset):
         self.preprocess_data(**PREPROCESSING_STEPS,
                             inplace = True
                             )
-        self.features = self.compute_features(inplace = False)
+        self.compute_features(inplace = True)
         self.estimate_wcpm(inplace = True)
         return self.get_data()
 

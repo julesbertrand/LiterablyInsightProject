@@ -16,7 +16,7 @@ from litscore.utils import logger, save_file, open_file, BaselineModel
 from litscore.dataset import Dataset
 from litscore.config import MODELS_PATH, PREPROCESSING_STEPS, SEED, DEFAULT_MODEL_TYPE, DEFAULT_PARAMS
 
-class ModelTrainer():
+class ModelTrainer(Dataset):
     def __init__(self,
                 df, 
                 model_type = DEFAULT_MODEL_TYPE,
@@ -27,14 +27,15 @@ class ModelTrainer():
                 human_wcpm_col = 'human_wcpm'
                 ):
         self.set_new_model(model_type)
-        self.data = Dataset(df,
-                            prompt_col = 'prompt', 
-                            asr_col = 'asr_transcript',
-                            human_col = 'human_transcript',
-                            duration_col = 'scored_duration',
-                            human_wcpm_col = 'human_wcpm',
-                            mode = 'train'
-                            )
+        Dataset.__init__(self,
+                        df=df,
+                        prompt_col='prompt', 
+                        asr_col='asr_transcript',
+                        human_col='human_transcript',
+                        duration_col='scored_duration',
+                        human_wcpm_col='human_wcpm',
+                        mode='train'
+                        )
     
     def set_new_model(self, model_type, params = {}, inplace = True):
         if model_type == 'RF':
@@ -77,13 +78,6 @@ class ModelTrainer():
                     replace = replace
                     )
 
-    def compute_features(self):
-        self.data.preprocess_data(**PREPROCESSING_STEPS,
-                            inplace = True
-                            )
-        # create dataframe of features
-        self.features = self.data.compute_features(inplace = False)  
-
     def train(self):
         try:
             self.X_train
@@ -100,8 +94,15 @@ class ModelTrainer():
                             test_set_size = .2, 
                             inplace = True
                             ):
+        # Preprocessing data
+        self.preprocess_data(**PREPROCESSING_STEPS,
+                            inplace = True
+                            )
+        # create dataframe of features with Dataset.compute_features()
+        self.compute_features(inplace=True) 
+        # removing outliers based on diff between human and asr transcript length
         if remove_outliers:
-            mask = self.data.determine_outliers_mask(tol = outliers_tol)
+            mask = self.determine_outliers_mask(tol = outliers_tol)
             self.features = self.features[mask]
             self.datapoints = mask.sum()
             logger.info("Removed %i outliers, %i datapoints remaining for training/testing",
@@ -110,6 +111,7 @@ class ModelTrainer():
                         )
         else:
             self.datapoints = len(self.features.index)
+        # train test split 
         X_train_raw, X_test_raw, Y_train, Y_test = train_test_split(self.features.drop(columns = ['human_wc']),
                                                     self.features['human_wc'],
                                                     test_size = test_set_size,
@@ -117,6 +119,7 @@ class ModelTrainer():
                                                    )
         self.test_idx = X_test_raw.index
         logger.debug("Fit scaler to training set and transform training and test set")
+
         self.scaler = StandardScaler()
         X_train = self.scaler.fit_transform(X_train_raw)
         X_test = self.scaler.transform(X_test_raw)
@@ -128,7 +131,7 @@ class ModelTrainer():
 
     def evaluate_model(self, visualize = True):
         Y_pred = self.model.predict(self.X_test)
-        stats = self.data.compute_stats(Y_pred, self.test_idx)
+        stats = self.compute_stats(Y_pred, self.test_idx)
         # creating 3 groups of datapoints based on human_wcpm
         assign_wcpm_bin = lambda x: '<75' if x<75 else ('75-150' if x<150 else '150+')
         stats['wcpm_bin'] = stats['human_wcpm'].apply(assign_wcpm_bin)
@@ -296,11 +299,10 @@ class ModelTrainer():
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_more.csv")
     # print(df.head())
-    # df = df.loc[:50]
+    df = df.loc[:50]
     trainer = ModelTrainer(df, model_type = "XGB")
-    trainer.compute_features()
     trainer.prepare_train_test_set(remove_outliers = True, outliers_tol = .1)
-    trainer.train(params = {})
+    trainer.train()
     # trainer.save_model(scaler = True, model = False)
     # gd = trainer.grid_search(model_type = 'XGB',
     #                          cv_params={'learning_rate': [0.05],
