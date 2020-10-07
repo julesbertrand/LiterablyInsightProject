@@ -14,7 +14,7 @@ from sklearn.metrics import make_scorer
 
 from litscore.utils import logger, save_file, open_file, BaselineModel
 from litscore.dataset import Dataset
-from litscore.config import MODELS_PATH, PREPROCESSING_STEPS, SEED, DEFAULT_MODEL_TYPE
+from litscore.config import MODELS_PATH, PREPROCESSING_STEPS, SEED, DEFAULT_MODEL_TYPE, DEFAULT_PARAMS
 
 class ModelTrainer():
     def __init__(self,
@@ -84,8 +84,7 @@ class ModelTrainer():
         # create dataframe of features
         self.features = self.data.compute_features(inplace = False)  
 
-    def train(self, params = {}):
-        self.model.set_params(**params)
+    def train(self):
         try:
             self.X_train
         except AttributeError:
@@ -133,25 +132,30 @@ class ModelTrainer():
         # creating 3 groups of datapoints based on human_wcpm
         assign_wcpm_bin = lambda x: '<75' if x<75 else ('75-150' if x<150 else '150+')
         stats['wcpm_bin'] = stats['human_wcpm'].apply(assign_wcpm_bin)
-        n = len(self.test_idx)
         # computing mean and std of stats for each bin
         stats_summary = stats.groupby('wcpm_bin').agg(['mean', 'std'])
+        stats_summary.loc['total'] = stats.agg(['mean', 'std']).unstack()
+        # stats_summary = pd.concat([stats_summary, total], axis = 0)
         stats_summary.drop(columns=['asr_wc_estimation', 'human_wcpm', 'wcpm_estimation'], inplace=True)
         cols = ['wcpm_estimation_error_%', 'wcpm_estimation_abs_error_%']
         cols = list(itertools.product(cols, ['mean', 'std']))  # computing (level 1, level 2) col names
         stats_summary[cols] = stats_summary[cols] * 100
         stats_summary = stats_summary.applymap(lambda x: round(x, 2))
         # computing # of error > 1%, 5%, 10% per bin 
-        d = {'Total Count': 0,
+        d = {'Total Count': -1,
              'Error > 1%': .01,
              'Error > 5%': .05,
              'Error > 10%': .1
             }
         for k, v in d.items():
             stats[k] = stats['wcpm_estimation_abs_error_%'] > v
+        agg_funcs = ['sum', lambda x: round(100 * sum(x) / len(x), 1)]
         errors_summary = stats[list(d.keys()) + ['wcpm_bin']].groupby('wcpm_bin')
-        errors_summary = errors_summary.agg(['sum', lambda x: round(100 * np.sum(x) / n, 1)])
-        errors_summary.columns.set_levels(['count', '% of test set'], level=1, inplace=True)
+        errors_summary = errors_summary.agg(agg_funcs)
+        errors_summary.columns.set_levels(['count', '% of bin'], level=1, inplace=True)
+        temp = stats[list(d.keys())].agg(agg_funcs).unstack()  # for total count and % of test set
+        temp.index.set_levels(['count', '% of bin'], level=1, inplace=True)
+        errors_summary.loc['total'] = temp
         if visualize:
             self.plot_wcpm_distribution(stats=stats,
                                         x='wcpm_estimation_error_%',
@@ -278,12 +282,12 @@ class ModelTrainer():
         plt.show()
 
     @staticmethod
-    def plot_wcpm_scatter(stats, y = 'wcpm_estimation_error_%'):
+    def plot_wcpm_scatter(stats, x='human_wcpm', y='wcpm_estimation_error_%'):
         plt.style.use("seaborn-darkgrid")
         _, ax = plt.subplots(1, 1, figsize=(16, 6))
-        sns.scatterplot(data=stats, x='human_wcpm', y=y)
+        sns.scatterplot(data=stats, x=x, y=y)
         ax.set_title('Graph of %s' % y, fontsize=20, fontweight='bold')
-        ax.set_xlabel('human wcpm', fontsize=16)
+        ax.set_xlabel(x, fontsize=16)
         ax.set_ylabel(y, fontsize=16)
         if '%' in y:
             ax.yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
@@ -292,7 +296,7 @@ class ModelTrainer():
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_more.csv")
     # print(df.head())
-    df = df.loc[:50]
+    # df = df.loc[:50]
     trainer = ModelTrainer(df, model_type = "XGB")
     trainer.compute_features()
     trainer.prepare_train_test_set(remove_outliers = True, outliers_tol = .1)
