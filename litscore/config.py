@@ -19,7 +19,7 @@ PREPROCESSING_STEPS = {
 
 """ Models available and config - Please update carefully or it could break the code """
 # Available models for training and prediction
-AVAILABLE_MODEL_TYPES = ['RF', 'XGB', 'KNN']
+AVAILABLE_MODEL_TYPES = ['Baseline', 'RF', 'XGB', 'KNN']
 # Default type of model used for predictions and training
 DEFAULT_MODEL_TYPE = 'XGB'
 # Default model files for each model

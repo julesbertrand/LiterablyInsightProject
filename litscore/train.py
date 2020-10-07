@@ -47,7 +47,8 @@ class ModelTrainer(Dataset):
         elif model_type == 'Baseline':
             estimator = BaselineModel()
         else:
-            logger.error("Sorry, training for mode_type %s has not been implemented yet.", model_type)
+            logger.error("Sorry, training for mode_type %s \
+                has not been implemented yet.", model_type)
             return
         self.model_type = model_type
         if not inplace:
@@ -112,11 +113,12 @@ class ModelTrainer(Dataset):
         else:
             self.datapoints = len(self.features.index)
         # train test split 
-        X_train_raw, X_test_raw, Y_train, Y_test = train_test_split(self.features.drop(columns=['human_wcpm']),
-                                                    self.features['human_wcpm'],
-                                                    test_size=test_set_size,
-                                                    random_state=SEED
-                                                   )
+        X_train_raw, X_test_raw, Y_train, Y_test = train_test_split(
+            self.features.drop(columns=['human_wcpm']),
+            self.features['human_wcpm'],
+            test_size=test_set_size,
+            random_state=SEED
+        )
         self.test_idx = X_test_raw.index
         logger.debug("Fit scaler to training set and transform training and test set")
 
@@ -221,8 +223,8 @@ class ModelTrainer(Dataset):
         self.model = grid_search.best_estimator_
         return grid_search
 
-    def plot_grid_search(self,
-                         cv_results,
+    @staticmethod
+    def plot_grid_search(cv_results,
                          x,
                          hue=None,
                          y='mean_test_score',
@@ -307,15 +309,6 @@ if __name__ == "__main__":
     trainer = ModelTrainer(df, model_type="XGB")
     trainer.prepare_train_test_set(remove_outliers=True, outliers_tol=.1)
     trainer.train()
-    # trainer.save_model(scaler=True, model=False)
-    # gd = trainer.grid_search(model_type='XGB',
-    #                          cv_params={'learning_rate': [0.05],
-    #                                     # 'n_estimators': list(np.arange(100, 500, 100))
-    #                                     },
-    #                         cv_folds=5,
-    #                         scoring_metric='r2')
-    # trainer.plot_grid_search(gd.cv_results_, x='n_estimators', hue=None)
-    # trainer.feature_importance()
     stats, stats_sum, error_sum = trainer.evaluate_model(visualize=True)
     print(stats_sum)
     print(error_sum)

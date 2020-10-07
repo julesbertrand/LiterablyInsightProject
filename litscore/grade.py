@@ -45,17 +45,13 @@ class DataGrader(Dataset):
         if self.model_type is model_type:
             pass  # no changes if same model wanted
         else:  # to be improved
-            if model_type in AVAILABLE_MODEL_TYPES:
-                self.model = self.__load_model(DEFAULT_MODEL_FILES[model_type])
-            elif model_type == 'Baseline':
+            if model_type == 'Baseline':
                 self.model = BaselineModel()
+            elif model_type in AVAILABLE_MODEL_TYPES:
+                self.model = self.__load_model(DEFAULT_MODEL_FILES[model_type])
             else:
-                logger.error("No such model is available: %s in %s. \
-                            please choose between 'Baseline', 'RF', 'XGB' and 'KNN'.",
-                            model_type,
-                            MODELS_PATH
-                            )
-                return
+                raise AttributeError("No such model is available. \
+Please choose in '%s'." % "', '".join(AVAILABLE_MODEL_TYPES))
             self.model_type = model_type
 
     def grade_wcpm(self):
