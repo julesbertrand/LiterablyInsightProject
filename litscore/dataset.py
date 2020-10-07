@@ -195,6 +195,8 @@ class Dataset():
                                            ])
         features.drop(columns = ['errors_dict'], inplace = True)
         features['asr_word_count'] = self.data[self.asr_col].apply(lambda x: len(x.split()))
+        features = features.div(self.data[self.duration_col] / 60, axis=0)
+        features = features.add_suffix('_pm')
         temp_prompt = self.data[self.prompt_col].apply(self.stats_length_of_words)
         temp_prompt = pd.DataFrame(temp_prompt.to_list(),
                                    columns = [
@@ -211,7 +213,8 @@ class Dataset():
                                 )
         features = pd.concat([features, temp_prompt, temp_asr], axis = 1)
         if self.mode == 'train':
-            features['human_wc'] = self.data['human_wcpm'].mul(self.data[self.duration_col] / 60, fill_value = 0)
+            # features['human_wc'] = self.data[self.human_wcpm_col].mul(self.data[self.duration_col] / 60, fill_value = 0)
+            features['human_wcpm'] = self.data[self.human_wcpm_col]
         self.features = features
         if not inplace:
             return self.features
@@ -243,16 +246,29 @@ class Dataset():
             logger.error("You need to be in 'train' mode to compute statistics about the wcpm estimation.\
                  'predict was passed")
             return
-        stats = pd.DataFrame(Y_pred, columns = ['asr_wc_estimation'], index = test_idx)
+        # stats = pd.DataFrame(Y_pred,
+        #                      columns=['asr_wc_estimation'],
+        #                      index=test_idx
+        #                     )
+        stats = pd.DataFrame(Y_pred,
+                             columns=['wcpm_estimation'],
+                             index=test_idx
+                            )
         stats['human_wcpm'] = self.data[self.human_wcpm_col].loc[test_idx]
-        stats['wcpm_estimation'] = stats['asr_wc_estimation'].div(self.data[self.duration_col].loc[test_idx] / 60, fill_value = 0)
+        # stats['wcpm_estimation'] = stats['asr_wc_estimation'].div(self.data[self.duration_col].loc[test_idx] / 60, fill_value = 0)
+        # stats.drop(columns=['asr_wc_estimation'], inplace=True)
         stats['wcpm_estimation_error'] = stats['human_wcpm'] - stats['wcpm_estimation']
         stats['wcpm_estimation_abs_error'] = stats['wcpm_estimation_error'].abs()
         stats['wcpm_estimation_error_%'] = np.where(stats['human_wcpm'] != 0,
-                                                        stats['wcpm_estimation_error'] / stats['human_wcpm'],
-                                                        0
-                                                        ) 
+                                                    stats['wcpm_estimation_error'] / stats['human_wcpm'],
+                                                    0
+                                                    ) 
         stats['wcpm_estimation_abs_error_%'] = stats['wcpm_estimation_error_%'].abs()
+        stats['RMSE'] = stats['wcpm_estimation_error'] ** 2
+        stats['RMSE_%'] = np.where(stats['human_wcpm'] != 0,
+                                    stats['RMSE'] / stats['human_wcpm'],
+                                    0
+                                    ) 
         return stats
 
 

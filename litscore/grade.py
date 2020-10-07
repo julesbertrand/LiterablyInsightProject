@@ -6,7 +6,7 @@ import pandas as pd
 
 from litscore.utils import logger, save_file, open_file, BaselineModel
 from litscore.dataset import Dataset
-from litscore.config import MODELS_PATH, DEFAULT_MODEL_TYPE, PREPROCESSING_STEPS, DEFAULT_MODEL_FILES
+from litscore.config import MODELS_PATH, PREPROCESSING_STEPS, AVAILABLE_MODEL_TYPES, DEFAULT_MODEL_TYPE, DEFAULT_MODEL_FILES, DEFAULT_PARAMS
 
 # main function
 def grade_wcpm(df):
@@ -45,7 +45,7 @@ class DataGrader(Dataset):
         if self.model_type is model_type:
             pass  # no changes if same model wanted
         else:  # to be improved
-            if model_type in ['RF', 'XGB', 'KNN']:
+            if model_type in AVAILABLE_MODEL_TYPES:
                 self.model = self.__load_model(DEFAULT_MODEL_FILES[model_type])
             elif model_type == 'Baseline':
                 self.model = BaselineModel()
@@ -73,10 +73,12 @@ class DataGrader(Dataset):
         """
         logger.debug("Estimating wcpm")
         self.features = self.scaler.transform(self.features)
-        wc = self.model.predict(self.features)
-        wc = pd.Series(wc, name = 'wc_estimations')
-        wcpm = wc.div(self.data[self.duration_col] /60, fill_value = 0).round()
-        wcpm.rename('wcpm_estimations', inplace = True)
+        # wc = self.model.predict(self.features)
+        # wc = pd.Series(wc, name = 'wc_estimations')
+        # wcpm = wc.div(self.data[self.duration_col] /60, fill_value = 0).round()
+        # wcpm.rename('wcpm_estimations', inplace = True)
+        wcpm = self.model.predict(self.features)
+        wcpm = pd.Series(wcpm, name = 'wcpm_estimations')
         if not inplace:
             return wcpm
         else:

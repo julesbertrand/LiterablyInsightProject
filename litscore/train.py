@@ -112,8 +112,8 @@ class ModelTrainer(Dataset):
         else:
             self.datapoints = len(self.features.index)
         # train test split 
-        X_train_raw, X_test_raw, Y_train, Y_test = train_test_split(self.features.drop(columns = ['human_wc']),
-                                                    self.features['human_wc'],
+        X_train_raw, X_test_raw, Y_train, Y_test = train_test_split(self.features.drop(columns = ['human_wcpm']),
+                                                    self.features['human_wcpm'],
                                                     test_size = test_set_size,
                                                     random_state = SEED
                                                    )
@@ -139,7 +139,11 @@ class ModelTrainer(Dataset):
         stats_summary = stats.groupby('wcpm_bin').agg(['mean', 'std'])
         stats_summary.loc['total'] = stats.agg(['mean', 'std']).unstack()
         # stats_summary = pd.concat([stats_summary, total], axis = 0)
-        stats_summary.drop(columns=['asr_wc_estimation', 'human_wcpm', 'wcpm_estimation'], inplace=True)
+        stats_summary.drop(columns=[
+            'human_wcpm',
+            'wcpm_estimation',
+            'wcpm_estimation_error_%'
+            ], inplace=True)
         cols = ['wcpm_estimation_error_%', 'wcpm_estimation_abs_error_%']
         cols = list(itertools.product(cols, ['mean', 'std']))  # computing (level 1, level 2) col names
         stats_summary[cols] = stats_summary[cols] * 100

@@ -8,6 +8,7 @@ DATA_PATH = './data/'
 # test data path
 TEST_DATA_PATH = './data/large_wcpm.csv'
 
+""" Preprocessing steps - Please update considering your preprocessing"""
 # preprocessing steps
 PREPROCESSING_STEPS = {
     'lowercase': True,
@@ -16,6 +17,9 @@ PREPROCESSING_STEPS = {
     'asr_string_recomposition': False,
 }
 
+""" Models available and config - Please update carefully or it could break the code """
+# Available models for training and prediction
+AVAILABLE_MODEL_TYPES = ['RF', 'XGB', 'KNN']
 # Default type of model used for predictions and training
 DEFAULT_MODEL_TYPE = 'XGB'
 # Default model files for each model
@@ -25,7 +29,7 @@ DEFAULT_MODEL_FILES = {
     'KNN': 'KNN.joblib',
     'StandardScaler': 'standard_scaler.joblib'
 }
-# Default parameters config for training each type of model:
+# Default parameters config for training each type of model, can be updated.
 DEFAULT_PARAMS = {
     'RF': {'max_features': 6,
            'n_estimators': 200,
