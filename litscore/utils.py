@@ -21,7 +21,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
-def open_file(file_path, sep = ';'):
+def open_file(file_path, sep=';'):
     _, extension = file_path.rsplit(".", 1)
     if not os.path.exists(file_path):
         raise FileNotFoundError
@@ -57,7 +57,7 @@ def save_file(file, path, file_name, replace=False):
     if extension == 'csv':
         file.to_csv(path + file_name, index=False, sep=';', encoding='utf-8')
     else:
-        joblib.dump(file, path + file_name, compress = 1)
+        joblib.dump(file, path + file_name, compress=1)
     logger.info("Saved file %s in dir %s", file_name, path)
 
 

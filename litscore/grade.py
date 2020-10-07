@@ -16,17 +16,17 @@ def grade_wcpm(df):
 class DataGrader(Dataset):
     def __init__(self,
                 df, 
-                prompt_col = 'prompt', 
-                asr_col = 'asr_transcript', 
-                duration_col = 'scored_duration',
-                model_type = DEFAULT_MODEL_TYPE,
+                prompt_col='prompt', 
+                asr_col='asr_transcript', 
+                duration_col='scored_duration',
+                model_type=DEFAULT_MODEL_TYPE,
                 ):
         Dataset.__init__(self,
                         df=df,
-                        prompt_col = prompt_col,
-                        asr_col = asr_col,
-                        duration_col = duration_col,
-                        mode = 'predict'
+                        prompt_col=prompt_col,
+                        asr_col=asr_col,
+                        duration_col=duration_col,
+                        mode='predict'
                         )
         self.scaler = self.__load_model(DEFAULT_MODEL_FILES['StandardScaler'])
         self.model_type = None
@@ -62,23 +62,23 @@ class DataGrader(Dataset):
         """ preprocess, compute features and give grade all in one function
         """
         self.preprocess_data(**PREPROCESSING_STEPS,
-                            inplace = True
+                            inplace=True
                             )
-        self.compute_features(inplace = True)
-        self.estimate_wcpm(inplace = True)
+        self.compute_features(inplace=True)
+        self.estimate_wcpm(inplace=True)
         return self.get_data()
 
-    def estimate_wcpm(self, inplace = False):
+    def estimate_wcpm(self, inplace=False):
         """ take current model and estimate the wcpm with it
         """
         logger.debug("Estimating wcpm")
         self.features = self.scaler.transform(self.features)
         # wc = self.model.predict(self.features)
-        # wc = pd.Series(wc, name = 'wc_estimations')
-        # wcpm = wc.div(self.data[self.duration_col] /60, fill_value = 0).round()
-        # wcpm.rename('wcpm_estimations', inplace = True)
+        # wc = pd.Series(wc, name='wc_estimations')
+        # wcpm = wc.div(self.data[self.duration_col] /60, fill_value=0).round()
+        # wcpm.rename('wcpm_estimations', inplace=True)
         wcpm = self.model.predict(self.features)
-        wcpm = pd.Series(wcpm, name = 'wcpm_estimations')
+        wcpm = pd.Series(wcpm, name='wcpm_estimations')
         if not inplace:
             return wcpm
         else:
@@ -88,7 +88,7 @@ class DataGrader(Dataset):
 
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_more.csv")
-    d = DataGrader(df.drop(columns = 'human_transcript').loc[:20], model_type = 'XGB')
+    d = DataGrader(df.drop(columns='human_transcript').loc[:20], model_type='XGB')
     d.grade_wcpm()
     print(d.data.head(20))
 

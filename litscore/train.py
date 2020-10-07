@@ -19,12 +19,12 @@ from litscore.config import MODELS_PATH, PREPROCESSING_STEPS, SEED, DEFAULT_MODE
 class ModelTrainer(Dataset):
     def __init__(self,
                 df, 
-                model_type = DEFAULT_MODEL_TYPE,
-                prompt_col = 'prompt', 
-                asr_col = 'asr_transcript',
-                human_col = 'human_transcript',
-                duration_col = 'scored_duration',
-                human_wcpm_col = 'human_wcpm'
+                model_type=DEFAULT_MODEL_TYPE,
+                prompt_col='prompt', 
+                asr_col='asr_transcript',
+                human_col='human_transcript',
+                duration_col='scored_duration',
+                human_wcpm_col='human_wcpm'
                 ):
         self.set_new_model(model_type)
         Dataset.__init__(self,
@@ -37,7 +37,7 @@ class ModelTrainer(Dataset):
                         mode='train'
                         )
     
-    def set_new_model(self, model_type, params = {}, inplace = True):
+    def set_new_model(self, model_type, params={}, inplace=True):
         if model_type == 'RF':
             estimator = RandomForestRegressor(random_state=SEED)
         elif model_type == 'XGB':
@@ -56,26 +56,26 @@ class ModelTrainer(Dataset):
         if params != {}:
             self.set_model_params(params)
     
-    def set_model_params(self, params = {}):
+    def set_model_params(self, params={}):
         self.model.set_params(**params)
 
-    def save_model(self, scaler = False, model = False, replace = False):
+    def save_model(self, scaler=False, model=False, replace=False):
         """ Save both scaler and trained / untrained model
         """
         if scaler:
             try:
                 save_file(self.scaler,
-                        path = MODELS_PATH,
-                        file_name =  'standard_scaler.joblib',
-                        replace = replace)
+                        path=MODELS_PATH,
+                        file_name= 'standard_scaler.joblib',
+                        replace=replace)
             except AttributeError:
                 logger.error("scaler not defined: Please fit a scaler before saving \
                             it by calling ModelTrainer.prepare_train_test_set()")
         if model:
             save_file(self.model,
-                    path = MODELS_PATH,
-                    file_name = self.model_type + '.joblib',
-                    replace = replace
+                    path=MODELS_PATH,
+                    file_name=self.model_type + '.joblib',
+                    replace=replace
                     )
 
     def train(self):
@@ -89,20 +89,20 @@ class ModelTrainer(Dataset):
         self.model = self.model.fit(self.X_train, self.Y_train)
 
     def prepare_train_test_set(self,
-                            remove_outliers = False,
-                            outliers_tol = .1, 
-                            test_set_size = .2, 
-                            inplace = True
+                            remove_outliers=False,
+                            outliers_tol=.1, 
+                            test_set_size=.2, 
+                            inplace=True
                             ):
         # Preprocessing data
         self.preprocess_data(**PREPROCESSING_STEPS,
-                            inplace = True
+                            inplace=True
                             )
         # create dataframe of features with Dataset.compute_features()
         self.compute_features(inplace=True) 
         # removing outliers based on diff between human and asr transcript length
         if remove_outliers:
-            mask = self.determine_outliers_mask(tol = outliers_tol)
+            mask = self.determine_outliers_mask(tol=outliers_tol)
             self.features = self.features[mask]
             self.datapoints = mask.sum()
             logger.info("Removed %i outliers, %i datapoints remaining for training/testing",
@@ -112,10 +112,10 @@ class ModelTrainer(Dataset):
         else:
             self.datapoints = len(self.features.index)
         # train test split 
-        X_train_raw, X_test_raw, Y_train, Y_test = train_test_split(self.features.drop(columns = ['human_wcpm']),
+        X_train_raw, X_test_raw, Y_train, Y_test = train_test_split(self.features.drop(columns=['human_wcpm']),
                                                     self.features['human_wcpm'],
-                                                    test_size = test_set_size,
-                                                    random_state = SEED
+                                                    test_size=test_set_size,
+                                                    random_state=SEED
                                                    )
         self.test_idx = X_test_raw.index
         logger.debug("Fit scaler to training set and transform training and test set")
@@ -129,7 +129,7 @@ class ModelTrainer(Dataset):
             self.X_train, self.X_test = X_train, X_test
             self.Y_train, self.Y_test = Y_train, Y_test
 
-    def evaluate_model(self, visualize = True):
+    def evaluate_model(self, visualize=True):
         Y_pred = self.model.predict(self.X_test)
         stats = self.compute_stats(Y_pred, self.test_idx)
         # creating 3 groups of datapoints based on human_wcpm
@@ -138,7 +138,7 @@ class ModelTrainer(Dataset):
         # computing mean and std of stats for each bin
         stats_summary = stats.groupby('wcpm_bin').agg(['mean', 'std'])
         stats_summary.loc['total'] = stats.agg(['mean', 'std']).unstack()
-        # stats_summary = pd.concat([stats_summary, total], axis = 0)
+        # stats_summary = pd.concat([stats_summary, total], axis=0)
         stats_summary.drop(columns=[
             'human_wcpm',
             'wcpm_estimation',
@@ -174,9 +174,9 @@ class ModelTrainer(Dataset):
     def grid_search(self,
                     model_type,
                     cv_params, 
-                    cv_folds = 5, 
-                    verbose = 2, 
-                    scoring_metric = 'r2'
+                    cv_folds=5, 
+                    verbose=2, 
+                    scoring_metric='r2'
                    ):
         params = dict()  # for params in cv_params with unique value, set directly to estimator
         params_grid = dict()  # for params to be actually cross-validated
@@ -186,8 +186,8 @@ class ModelTrainer(Dataset):
             else:
                 params_grid[key] = value
         estimator = self.set_new_model(model_type=model_type,
-                                       params = params,
-                                       inplace = False
+                                       params=params,
+                                       inplace=False
                                       )
         print("\n" + " Estimator: ".center(120, "-"))
         print(estimator.__class__.__name__)
@@ -206,19 +206,19 @@ class ModelTrainer(Dataset):
             print("Please redefine inputs.")
             return
 
-        grid_search = GridSearchCV(estimator = estimator,
-                                    param_grid = params_grid,
-                                    scoring = scoring_metric,
-                                    cv = cv_folds,
-                                    n_jobs = -1, 
-                                    verbose = verbose
+        grid_search = GridSearchCV(estimator=estimator,
+                                    param_grid=params_grid,
+                                    scoring=scoring_metric,
+                                    cv=cv_folds,
+                                    n_jobs=-1, 
+                                    verbose=verbose
                                     )
         try:
             grid_search.fit(self.X_train, self.Y_train)
         except AttributeError:
             logger.error("X_train, Y_train not defined: Please prepare train and test \
                         set before training by calling ModelTrainer.prepare_train_test_set()")
-        self.model  = grid_search.best_estimator_
+        self.model = grid_search.best_estimator_
         return grid_search
 
     def plot_grid_search(self,
@@ -235,7 +235,7 @@ class ModelTrainer(Dataset):
         x = 'param_' + x
         # Plot Grid search scores
         plt.style.use("seaborn-darkgrid")
-        _, ax = plt.subplots(1,1, figsize = (10, 4))
+        _, ax = plt.subplots(1,1, figsize=(10, 4))
 
         # Param1 is the X-axis, Param 2 is represented as a different curve (color line)
         sns.lineplot(data=cv_results, x=x, y=y, hue=hue, palette='Set2')
@@ -249,7 +249,7 @@ class ModelTrainer(Dataset):
         ax.grid('on')
         plt.show()
 
-    def feature_importance(self, threshold = 0.001):
+    def feature_importance(self, threshold=0.001):
         """
         Compute and plot feature importance for tree based methods from sklearn or similar
         input: model already fitted
@@ -272,9 +272,9 @@ class ModelTrainer(Dataset):
         plt.show()
 
     @staticmethod
-    def plot_wcpm_distribution(stats, x, stat='count', binwidth = .01):
+    def plot_wcpm_distribution(stats, x, stat='count', binwidth=.01):
         plt.style.use("seaborn-darkgrid")
-        _, ax = plt.subplots(1, 1,figsize = (16, 6))
+        _, ax = plt.subplots(1, 1,figsize=(16, 6))
         sns.histplot(ax=ax,
                         data=stats,
                         x=x,
@@ -304,18 +304,18 @@ if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_more.csv")
     # print(df.head())
     df = df.loc[:50]
-    trainer = ModelTrainer(df, model_type = "XGB")
-    trainer.prepare_train_test_set(remove_outliers = True, outliers_tol = .1)
+    trainer = ModelTrainer(df, model_type="XGB")
+    trainer.prepare_train_test_set(remove_outliers=True, outliers_tol=.1)
     trainer.train()
-    # trainer.save_model(scaler = True, model = False)
-    # gd = trainer.grid_search(model_type = 'XGB',
+    # trainer.save_model(scaler=True, model=False)
+    # gd = trainer.grid_search(model_type='XGB',
     #                          cv_params={'learning_rate': [0.05],
     #                                     # 'n_estimators': list(np.arange(100, 500, 100))
     #                                     },
     #                         cv_folds=5,
-    #                         scoring_metric = 'r2')
+    #                         scoring_metric='r2')
     # trainer.plot_grid_search(gd.cv_results_, x='n_estimators', hue=None)
     # trainer.feature_importance()
-    stats, stats_sum, error_sum = trainer.evaluate_model(visualize = True)
+    stats, stats_sum, error_sum = trainer.evaluate_model(visualize=True)
     print(stats_sum)
     print(error_sum)

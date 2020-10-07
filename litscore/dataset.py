@@ -13,12 +13,12 @@ from litscore.utils import logger, save_file, open_file, BaselineModel
 class Dataset():
     def __init__(self,
                 df,
-                prompt_col = 'prompt',
-                asr_col = 'asr_transcript',
-                human_col = 'human_transcript',
-                duration_col = 'scored_duration',
-                human_wcpm_col = 'human_wcpm',
-                mode = 'predict'
+                prompt_col='prompt',
+                asr_col='asr_transcript',
+                human_col='human_transcript',
+                duration_col='scored_duration',
+                human_wcpm_col='human_wcpm',
+                mode='predict'
                 ):
         self.data_raw = df
         self.data = self.data_raw.copy()
@@ -37,10 +37,10 @@ class Dataset():
     def get_features(self):
         return self.features
 
-    def save_data(self, filename, path = DATA_PATH):
-        save_file(self.data, path, filename, replace = False)
+    def save_data(self, filename, path=DATA_PATH):
+        save_file(self.data, path, filename, replace=False)
 
-    def print_row(self, col_names=[], index = -1):
+    def print_row(self, col_names=[], index=-1):
         if len(col_names) == 0:
             col_names = self.data.columns
         if index != -1:
@@ -52,11 +52,11 @@ class Dataset():
             print(self.data[col_names])
 
     def preprocess_data(self,
-                        lowercase = True,
-                        punctuation_free = True,
-                        convert_num2words = True,
-                        asr_string_recomposition = False,
-                        inplace = False
+                        lowercase=True,
+                        punctuation_free=True,
+                        convert_num2words=True,
+                        asr_string_recomposition=False,
+                        inplace=False
                         ):
         """ Preprocessing data to make it standard and comparable
         """
@@ -86,7 +86,7 @@ class Dataset():
                 s = s.translate(translater)
                 return str(" ".join(s.split()))
             df.applymap(lambda x: remove_punctuation(x, t))
-        df.fillna(" ", inplace = True)
+        df.fillna(" ", inplace=True)
 
         if not inplace:
             return df
@@ -94,7 +94,7 @@ class Dataset():
             self.data[columns] = df
 
     @staticmethod
-    def compare_text(string_a, string_b, split_car = " "):
+    def compare_text(string_a, string_b, split_car=" "):
         """ compare string a and b split by split_care, default split by word,\
             remove text surplus at the end
         Used in self.compute_differ_list()
@@ -112,7 +112,7 @@ class Dataset():
                 differ_list.pop()
         return differ_list
 
-    def compute_differ_list(self, col_1, col_2, inplace = False):
+    def compute_differ_list(self, col_1, col_2, inplace=False):
         """ apply _compare_text to two self.df columns 
         and creates a new column in df for the number of common words
         """
@@ -122,7 +122,7 @@ class Dataset():
         temp = self.data.apply(lambda x: self.compare_text(x[col_1], x[col_2]), axis=1)
 
         if not inplace:
-            return pd.Series(temp, name = 'differ_list')
+            return pd.Series(temp, name='differ_list')
         else:
             self.data['differ_list'] = temp
 
@@ -165,7 +165,7 @@ class Dataset():
         return counter, add, sub, replaced, errors_dict
 
     @staticmethod
-    def stats_length_of_words(s, sep = " "):
+    def stats_length_of_words(s, sep=" "):
         """ takes a string s and gives the avg length of words in it
         """
         s = s.split(sep)
@@ -177,49 +177,48 @@ class Dataset():
         std = round(np.std(s), 3)
         return mean, std 
 
-    def compute_features(self, inplace = False):
+    def compute_features(self, inplace=False):
         """ compute differ list with difflib, then count words and add feautres for wcpm estimation
         """
-        diff_list = self.compute_differ_list(col_1 = self.prompt_col,
-                                            col_2 = self.asr_col,
-                                            inplace = False
+        diff_list = self.compute_differ_list(col_1=self.prompt_col,
+                                            col_2=self.asr_col,
+                                            inplace=False
                                             )
         logger.debug("Computing features")
         temp = diff_list.apply(self.get_errors_dict)
         features = pd.DataFrame(temp.to_list(), 
-                                columns = ["correct_words",
-                                           "added_words",
-                                           "removed_words",
-                                           "replaced_words",
-                                           "errors_dict"
-                                           ])
-        features.drop(columns = ['errors_dict'], inplace = True)
+                                columns=[
+                                    "correct_words",
+                                    "added_words",
+                                    "removed_words",
+                                    "replaced_words",
+                                    "errors_dict"
+                                ])
+        features.drop(columns=['errors_dict'], inplace=True)
         features['asr_word_count'] = self.data[self.asr_col].apply(lambda x: len(x.split()))
         features = features.div(self.data[self.duration_col] / 60, axis=0)
         features = features.add_suffix('_pm')
         temp_prompt = self.data[self.prompt_col].apply(self.stats_length_of_words)
         temp_prompt = pd.DataFrame(temp_prompt.to_list(),
-                                   columns = [
+                                   columns=[
                                        'prompt_avg_word_length',
                                        'prompt_std_word_length'
-                                       ]
-                                  )
+                                    ])
         temp_asr = self.data[self.asr_col].apply(self.stats_length_of_words)
         temp_asr = pd.DataFrame(temp_asr.to_list(),
-                                columns = [
+                                columns=[
                                     'asr_avg_word_length', 
                                     'asr_std_word_length'
-                                    ]
-                                )
-        features = pd.concat([features, temp_prompt, temp_asr], axis = 1)
+                                ])
+        features = pd.concat([features, temp_prompt, temp_asr], axis=1)
         if self.mode == 'train':
-            # features['human_wc'] = self.data[self.human_wcpm_col].mul(self.data[self.duration_col] / 60, fill_value = 0)
+            # features['human_wc'] = self.data[self.human_wcpm_col].mul(self.data[self.duration_col] / 60, fill_value=0)
             features['human_wcpm'] = self.data[self.human_wcpm_col]
         self.features = features
         if not inplace:
             return self.features
 
-    def determine_outliers_mask(self, tol = .2):
+    def determine_outliers_mask(self, tol=.2):
         """ For train mode, determine what rows have a too big difference 
         between human and asr transcript length to be taken into account
         Input: tol: % of diff between len(asr_transcript) adn len(human_transcript) \
@@ -255,7 +254,7 @@ class Dataset():
                              index=test_idx
                             )
         stats['human_wcpm'] = self.data[self.human_wcpm_col].loc[test_idx]
-        # stats['wcpm_estimation'] = stats['asr_wc_estimation'].div(self.data[self.duration_col].loc[test_idx] / 60, fill_value = 0)
+        # stats['wcpm_estimation'] = stats['asr_wc_estimation'].div(self.data[self.duration_col].loc[test_idx] / 60, fill_value=0)
         # stats.drop(columns=['asr_wc_estimation'], inplace=True)
         stats['wcpm_estimation_error'] = stats['human_wcpm'] - stats['wcpm_estimation']
         stats['wcpm_estimation_abs_error'] = stats['wcpm_estimation_error'].abs()
@@ -275,7 +274,7 @@ class Dataset():
 if __name__ == "__main__":
     df = pd.read_csv("./data/wcpm_w_dur.csv")
     d = Dataset(df.loc[:50])
-    d.preprocess_data(inplace = True)
-    d.compute_features(inplace = True)
-    # print(d.determine_outliers_mask(tol = .1))
+    d.preprocess_data(inplace=True)
+    d.compute_features(inplace=True)
+    # print(d.determine_outliers_mask(tol=.1))
     print(d.features.head(6))
