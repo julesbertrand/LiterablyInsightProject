@@ -6,4 +6,3 @@ xgboost
 num2words
 matplotlib
 seaborn
-logging

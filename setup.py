@@ -14,8 +14,7 @@ setup(
       'xgboost',
       'num2words',
       'matplotlib',
-      'seaborn',
-      'logging',  # to be removed ?
+      'seaborn'
       ],
       zip_safe=False
 )
