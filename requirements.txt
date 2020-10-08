@@ -1,0 +1,9 @@
+numpy
+pandas
+joblib
+sklearn
+xgboost
+num2words
+matplotlib
+seaborn
+logging
