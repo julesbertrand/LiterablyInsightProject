@@ -1,11 +1,11 @@
 from setuptools import setup
 
 setup(
-    name="literacy-insight-project",
+    name="litreadingai",
     author="Jules Bertrand",
     author_email="julesbertrand13@gmail.com",
-    url="https://github.com/julesbertrand/literacy-assessment-insight-project.git",
-    packages=["litscore"],
+    url="https://github.com/julesbertrand/litreading-insight-project.git",
+    packages=["litreading"],
     install_requires = [
       'numpy',
       'pandas',
