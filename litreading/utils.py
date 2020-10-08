@@ -10,7 +10,7 @@ import seaborn as sns
 
 import joblib
 
-from litscore.config import DATA_PATH, MODELS_PATH
+from litreading.config import MODELS_PATH
 
 # Logging
 logger = logging.getLogger()
@@ -24,7 +24,7 @@ logger.setLevel(logging.INFO)
 def open_file(file_path, sep=';'):
     _, extension = file_path.rsplit(".", 1)
     if not os.path.exists(file_path):
-        raise FileNotFoundError
+        raise FileNotFoundError(file_path)
     if extension == 'csv':
         f = pd.read_csv(file_path, sep=sep)
     else:

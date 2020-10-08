@@ -12,9 +12,9 @@ from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import make_scorer 
 
-from litscore.utils import logger, save_file, open_file, BaselineModel
-from litscore.dataset import Dataset
-from litscore.config import MODELS_PATH, PREPROCESSING_STEPS, SEED, DEFAULT_MODEL_TYPE, DEFAULT_PARAMS
+from litreading.utils import logger, save_file, open_file, BaselineModel
+from litreading.dataset import Dataset
+from litreading.config import MODELS_PATH, PREPROCESSING_STEPS, SEED, DEFAULT_MODEL_TYPE, DEFAULT_PARAMS
 
 class ModelTrainer(Dataset):
     def __init__(self,
@@ -50,6 +50,7 @@ class ModelTrainer(Dataset):
             logger.error("Sorry, training for mode_type %s \
                 has not been implemented yet.", model_type)
             return
+        print(model_type)
         self.model_type = model_type
         if not inplace:
             return estimator.set_params(**params)
@@ -146,8 +147,10 @@ class ModelTrainer(Dataset):
             'wcpm_estimation',
             'wcpm_estimation_error_%'
             ], inplace=True)
-        cols = ['wcpm_estimation_error_%', 'wcpm_estimation_abs_error_%']
-        cols = list(itertools.product(cols, ['mean', 'std']))  # computing (level 1, level 2) col names
+        cols = [
+            ('wcpm_estimation_abs_error_%', 'mean'),
+            ('wcpm_estimation_abs_error_%', 'std')
+        ]
         stats_summary[cols] = stats_summary[cols] * 100
         stats_summary = stats_summary.applymap(lambda x: round(x, 2))
         # computing # of error > 1%, 5%, 10% per bin 
@@ -307,7 +310,8 @@ if __name__ == "__main__":
     # print(df.head())
     df = df.loc[:50]
     trainer = ModelTrainer(df, model_type="XGB")
-    trainer.prepare_train_test_set(remove_outliers=True, outliers_tol=.1)
+    trainer.prepare_train_test_set(remove_outliers=True, outliers_tol=.2)
+    trainer.train()
     trainer.train()
     stats, stats_sum, error_sum = trainer.evaluate_model(visualize=True)
     print(stats_sum)

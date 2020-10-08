@@ -2,9 +2,7 @@
 
 """Package paths - Please update before installation!"""
 # a path to a folder in which models are saved
-MODELS_PATH = './litscore/models/'
-# a path to a folder in which data is saved by default
-DATA_PATH = './data/'
+MODELS_PATH = './litreading/models/'
 # test data path
 TEST_DATA_PATH = './data/large_wcpm.csv'
 

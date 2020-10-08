@@ -7,8 +7,8 @@ from num2words import num2words  # preprocessing
 import string  # preprocessing punctuation
 import difflib  # text comparison
 
-from litscore.config import DATA_PATH, MODELS_PATH
-from litscore.utils import logger, save_file, open_file, BaselineModel
+from litreading.config import MODELS_PATH
+from litreading.utils import logger, save_file, open_file, BaselineModel
 
 class Dataset():
     def __init__(self,
@@ -37,7 +37,7 @@ class Dataset():
     def get_features(self):
         return self.features
 
-    def save_data(self, filename, path=DATA_PATH):
+    def save_data(self, filename, path):
         save_file(self.data, path, filename, replace=False)
 
     def print_row(self, col_names=[], index=-1):
@@ -264,10 +264,10 @@ class Dataset():
                                                     ) 
         stats['wcpm_estimation_abs_error_%'] = stats['wcpm_estimation_error_%'].abs()
         stats['RMSE'] = stats['wcpm_estimation_error'] ** 2
-        stats['RMSE_%'] = np.where(stats['human_wcpm'] != 0,
-                                    stats['RMSE'] / stats['human_wcpm'],
-                                    0
-                                    ) 
+        # stats['RMSE_%'] = np.where(stats['human_wcpm'] != 0,
+        #                             stats['RMSE'] / stats['human_wcpm'],
+        #                             0
+        #                             ) 
         return stats
 
 

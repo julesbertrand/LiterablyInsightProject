@@ -4,9 +4,9 @@ import errno
 import numpy as np
 import pandas as pd
 
-from litscore.utils import logger, save_file, open_file, BaselineModel
-from litscore.dataset import Dataset
-from litscore.config import MODELS_PATH, PREPROCESSING_STEPS, AVAILABLE_MODEL_TYPES, DEFAULT_MODEL_TYPE, DEFAULT_MODEL_FILES, DEFAULT_PARAMS
+from litreading.utils import logger, save_file, open_file, BaselineModel
+from litreading.dataset import Dataset
+from litreading.config import MODELS_PATH, PREPROCESSING_STEPS, AVAILABLE_MODEL_TYPES, DEFAULT_MODEL_TYPE, DEFAULT_MODEL_FILES, DEFAULT_PARAMS
 
 # main function
 def grade_wcpm(df):
