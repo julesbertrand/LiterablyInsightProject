@@ -74,11 +74,12 @@ Please choose in '%s'." % "', '".join(AVAILABLE_MODEL_TYPES))
         # wcpm = wc.div(self.data[self.duration_col] /60, fill_value=0).round()
         # wcpm.rename('wcpm_estimations', inplace=True)
         wcpm = self.model.predict(self.features)
-        wcpm = pd.Series(wcpm, name='wcpm_estimations')
+        wcpm = pd.Series(wcpm, name='wcpm_estimation')
+        wcpm = wcpm.apply(lambda x: round(x, 1))
         if not inplace:
             return wcpm
         else:
-            self.data['wcpm_estimations'] = wcpm
+            self.data['wcpm_estimation'] = wcpm
 
 
 
