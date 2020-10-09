@@ -245,17 +245,11 @@ class Dataset():
             logger.error("You need to be in 'train' mode to compute statistics about the wcpm estimation.\
                  'predict was passed")
             return
-        # stats = pd.DataFrame(Y_pred,
-        #                      columns=['asr_wc_estimation'],
-        #                      index=test_idx
-        #                     )
         stats = pd.DataFrame(Y_pred,
                              columns=['wcpm_estimation'],
                              index=test_idx
                             )
         stats['human_wcpm'] = self.data[self.human_wcpm_col].loc[test_idx]
-        # stats['wcpm_estimation'] = stats['asr_wc_estimation'].div(self.data[self.duration_col].loc[test_idx] / 60, fill_value=0)
-        # stats.drop(columns=['asr_wc_estimation'], inplace=True)
         stats['wcpm_estimation_error'] = stats['human_wcpm'] - stats['wcpm_estimation']
         stats['wcpm_estimation_abs_error'] = stats['wcpm_estimation_error'].abs()
         stats['wcpm_estimation_error_%'] = np.where(stats['human_wcpm'] != 0,
@@ -264,10 +258,6 @@ class Dataset():
                                                     ) 
         stats['wcpm_estimation_abs_error_%'] = stats['wcpm_estimation_error_%'].abs()
         stats['RMSE'] = stats['wcpm_estimation_error'] ** 2
-        # stats['RMSE_%'] = np.where(stats['human_wcpm'] != 0,
-        #                             stats['RMSE'] / stats['human_wcpm'],
-        #                             0
-        #                             ) 
         return stats
 
 
