@@ -50,7 +50,6 @@ class ModelTrainer(Dataset):
             logger.error("Sorry, training for mode_type %s \
                 has not been implemented yet.", model_type)
             return
-        print(model_type)
         self.model_type = model_type
         if not inplace:
             return estimator.set_params(**params)
@@ -281,10 +280,10 @@ class ModelTrainer(Dataset):
         plt.style.use("seaborn-darkgrid")
         _, ax = plt.subplots(1, 1,figsize=(16, 6))
         sns.histplot(ax=ax,
-                        data=stats,
-                        x=x,
-                        stat=stat,
-                        binwidth=binwidth
+                    data=stats,
+                    x=x,
+                    stat=stat,
+                    binwidth=binwidth
                     )
         ax.set_title("Distribution of errors",fontsize=20, fontweight='bold')
         ax.set_xlabel(x, fontsize=16)
