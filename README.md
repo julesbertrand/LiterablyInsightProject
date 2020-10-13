@@ -13,10 +13,11 @@ pip install git+https://github.com/julesbertrand/litreading-insight-project
 ```
 
 ### Update config file
-Please go to your package directory (something like `appdata\local\programs\python\python37\lib\site-packages`) and check if the paths variables are ok (especially MODELS_PATH).
+Please go to your package directory (something like `appdata\local\programs\python\python37\lib\site-packages`) and check if the paths variables are ok (especially MODELS_PATH).  
 You can also modify the preprocessing steps you want to run on your data. In that case, you may want to retrain the model to be sure to have great results.
 
 ### Run streamlit app (for fun)
+you will need to clone the repo and install streamlit
 
 ## Execution
 
@@ -37,7 +38,7 @@ Once your data is in the form of a DataFrame `df` with the right column headers,
 ## Algorithm and performance so far
 
 ## Repo Directory structure
-The package is located in the `litreading/` folder. All the modules are located in it along side a configuration file `config.py` where paths to the required files and model training default config are defined. The `litreading/models/` folder holds the models which are used for prediction and newly trained models - make sure that the MODELS_PATH variable in `config.py` is updated and points to the location of the `litreading/models/` folder! The `dataset.py` file hosts the Dataset class for preprocessing and data computation, the `grade.py` file hosts the DataGrader class for wcpm estimation, and the `train.py` files hosts the ModelTrainer class for training default model, new models, or make an sklearn gridsearch.
+The package is located in the `litreading/` folder. All the modules are located in it along side a configuration file `config.py` where paths to the required files and model training default config are defined. The `litreading/models/` folder holds the models which are used for prediction and newly trained models - make sure that the MODELS_PATH variable in `config.py` is updated and points to the location of the `litreading/models/` folder! The `dataset.py` file hosts the Dataset class for preprocessing and data computation, the `grade.py` file hosts the DataGrader class for wcpm estimation, and the `train.py` files hosts the ModelTrainer class for training default model, new models, or make an sklearn gridsearch.  
 
 Unit tests are located in the `tests/` folder and for them to run properly, the variable TEST_FOLDER in config.py should point to the `tests/test_data/` folder. This gitrepo is connected to Travis.CI to run tests.
 
