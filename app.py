@@ -5,7 +5,7 @@ import streamlit as st
 from litreading.grade import grade_wcpm
 
 def main():
-    f = open("./appheader.md", 'r')
+    f = open("./resources/appheader.md", 'r')
     st.markdown(f.read())
     f.close()
     prompt = st.text_area("Input the original text")
