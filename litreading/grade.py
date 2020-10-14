@@ -32,9 +32,10 @@ class DataGrader(Dataset):
         self.model_type = None
         self.set_model(model_type)
 
-    def __load_model(self, model_file):
+    def __load_model(self, model_file, print_info=False):
         model_path = MODELS_PATH + model_file
-        logger.info("Loading model from %s", model_path)
+        if print_info:
+            logger.info("Loading model from %s", model_path)
         model = open_file(model_path)
         return model
 
@@ -48,13 +49,16 @@ class DataGrader(Dataset):
             if model_type == 'Baseline':
                 self.model = BaselineModel()
             elif model_type in AVAILABLE_MODEL_TYPES:
-                self.model = self.__load_model(DEFAULT_MODEL_FILES[model_type])
+                self.model = self.__load_model(
+                    DEFAULT_MODEL_FILES[model_type],
+                    print_info=True
+                )
             else:
                 raise AttributeError("No such model is available. \
 Please choose in '%s'." % "', '".join(AVAILABLE_MODEL_TYPES))
             self.model_type = model_type
 
-    def grade_wcpm(self):
+    def grade_wcpm(self, only_wcpm=False):
         """ preprocess, compute features and give grade all in one function
         """
         self.preprocess_data(**PREPROCESSING_STEPS,
@@ -62,7 +66,10 @@ Please choose in '%s'." % "', '".join(AVAILABLE_MODEL_TYPES))
                             )
         self.compute_features(inplace=True)
         self.estimate_wcpm(inplace=True)
-        return self.get_data()
+        if only_wcpm:
+            return self.get_data()['wcpm_estimation']
+        else:
+            return self.get_data()
 
     def estimate_wcpm(self, inplace=False):
         """ take current model and estimate the wcpm with it

@@ -51,6 +51,7 @@ class ModelTrainer(Dataset):
                 has not been implemented yet.", model_type)
             return
         self.model_type = model_type
+        logger.info("New model set: %s", model_type)
         if not inplace:
             return estimator.set_params(**params)
         self.model = estimator

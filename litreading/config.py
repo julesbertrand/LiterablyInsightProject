@@ -30,20 +30,20 @@ DEFAULT_MODEL_FILES = {
 # Default parameters config for training each type of model, can be updated.
 DEFAULT_PARAMS = {
     'RF': {'max_features': 6,
-           'n_estimators': 200,
-           'max_depth': 20,
-           'min_samples_split': 8,
-           'min_samples_leaf': 2,
+           'n_estimators': 600,
+           'max_depth': 10,
+           'min_samples_split': 4,
+           'min_samples_leaf': 1,
            'bootstrap': True
           },
-    'XGB': {'n_estimators': 5000,
+    'XGB': {'n_estimators': 800,
             'learning_rate': 0.02,
             'max_depth': 7,
-            'subsample': 0.81,
-            'colsample_bytree': 0.86,
+            'subsample': 0.8,
+            'colsample_bytree': 0.9,
             'gamma': 5
             },
-    'KNN': {'n_neighbors': 6,
+    'KNN': {'n_neighbors': 4,
             'weights': 'distance'
             }
     }
