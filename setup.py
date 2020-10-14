@@ -12,7 +12,7 @@ setup(
       'numpy',
       'pandas',
       'joblib',
-      'sklearn',
+      'scikit-learn',
       'xgboost',
       'num2words',
       'matplotlib',
