@@ -81,7 +81,7 @@ grades = grader.grade_wcpm(df)
 
 Please refer to the [examples jupyter notebook](https://github.com/julesbertrand/litreading-insight-project/blob/master/tutorial_litgrade.ipynb) in the github repo for more details.
 
-### Retraining the model
+### Training models
 
 To train a model, you will have to instanciate a Modeltrainer. You can either choose to retrain the same model with default params (already tuned for this problem for KNN, RF and XGBoost) or try a gridsearch for hyperparameters tuning.
 
@@ -137,6 +137,10 @@ Unit tests are located in the `tests/` folder and for them to run properly, the 
 │   └── test_data
 │      ├── test_data_2.csv
 │      └── test_data_1.csv
+├── resources
+│   ├── appheader.md
+│   ├── results.png
+│   └── feature_importance.png
 ├── .gitignore
 ├── .travis.yml
 ├── LICENSE  
