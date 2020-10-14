@@ -137,8 +137,6 @@ Unit tests are located in the `tests/` folder and for them to run properly, the 
 │   ├── test_grade.py
 │   ├── test_train.py
 │   └── test_data
-│      ├── test_data_2.csv
-│      └── test_data_1.csv
 ├── resources
 │   ├── appheader.md
 │   ├── distribution_errors_xgb.png
