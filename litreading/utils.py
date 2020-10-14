@@ -70,6 +70,9 @@ class BaselineModel():
 
     def set_params(self, **params):
         logger.info("No params to be set in Baseline model")
+
+    def get_params(self, **params):
+        logger.info("No params in Baseline model")
     
     def predict(self, X_test):
         # prediction is the word correct count based on differ list

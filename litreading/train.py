@@ -51,6 +51,8 @@ class ModelTrainer(Dataset):
                 has not been implemented yet.", model_type)
             return
         self.model_type = model_type
+        if params == 'config_params':
+            params = DEFAULT_PARAMS[model_type]
         logger.info("New model set: %s", model_type)
         if not inplace:
             return estimator.set_params(**params)
@@ -59,6 +61,8 @@ class ModelTrainer(Dataset):
             self.set_model_params(params)
     
     def set_model_params(self, params={}):
+        if params == 'config_params':
+            params = DEFAULT_PARAMS[self.model_type]
         self.model.set_params(**params)
 
     def save_model(self, scaler=False, model=False, replace=False):
