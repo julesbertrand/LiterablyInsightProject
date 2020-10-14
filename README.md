@@ -106,9 +106,11 @@ Please refer to the [examples jupyter notebook](https://github.com/julesbertrand
 
 The algorithm is using Difflib to make a word to word comparison between the original text and teh ASR transcript. If the original text was not fully read, then the end is deleted to ensure a fair count. Then features are computed by counting the number of words correct (same word, same place), replaced(wrong word, same place), added, or removed, as well as the number of words in each transcript and the mean and standard deviation in word length for each text. An XGBoost finetuned model is then run on this features to have an estimation of the WCPM of the students.
 
-Currently, the MAE is 2.67% on with 3000 datapoint used for training/test. The RMSE is ? TO BE COMPLETED
+Currently with XGBoost, the MAE is 2.57% (2.28 in absoute) on with 3000 datapoint used for training/test. The RMSE is 16.38, to compare to an average wcpm of around 120. Here is the distrobution of errors for XGB, and a scatter plot with y=estimations and x=labels=human_wcpm. 
+![](resources/distribution_errors_xgb.png?raw=true)
+![](resources/scatter_xgb.png?raw=true)
 
-![](cloudwine/resources/model_evaluation.png?raw=true)
+We can see that the etsimations are very good, however more data is needed to train an accurate algorithm for big values of wcpm.
 
 ## Repo Directory structure
 The package is located in the `litreading/` folder. All the modules are located in it along side a configuration file `config.py` where paths to the required files and model training default config are defined. The `litreading/models/` folder holds the models which are used for prediction and newly trained models - make sure that the MODELS_PATH variable in `config.py` is updated and points to the location of the `litreading/models/` folder! The `dataset.py` file hosts the Dataset class for preprocessing and data computation, the `grade.py` file hosts the DataGrader class for wcpm estimation, and the `train.py` files hosts the ModelTrainer class for training default model, new models, or make an sklearn gridsearch.  
@@ -139,8 +141,8 @@ Unit tests are located in the `tests/` folder and for them to run properly, the 
 │      └── test_data_1.csv
 ├── resources
 │   ├── appheader.md
-│   ├── results.png
-│   └── feature_importance.png
+│   ├── distribution_errors_xgb.png
+│   └── scatter_xgb.png
 ├── .gitignore
 ├── .travis.yml
 ├── LICENSE  
