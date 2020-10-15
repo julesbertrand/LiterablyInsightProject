@@ -2,6 +2,10 @@
 ### Automated assessment of students' reading skills and literacy
 This is a consulting project done as part of Insight Artificial Intelligence Fellowship.
 
+![GitHub](https://img.shields.io/github/license/julesbertrand/litreading-insight-project)
+![Travis (.com)](https://img.shields.io/travis/com/julesbertrand/litreading-insight-project?label=TravisCI)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
+
 ## Background
 We are trying to predict the true number of words correct spoken by a student reading out loud per minute, using a speech recognition-generated transcript of the student reading out loud and the original passage that the student is supposed to read.
 This is a python module that can accept an ASR-generated transcript, the original text the student was supposed to read and the scored duration of the reading in order to estimate the number of words the student read correctly and therefore the number of words he can read correctly per minute.
