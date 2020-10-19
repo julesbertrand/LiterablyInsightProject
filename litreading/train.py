@@ -90,7 +90,7 @@ class ModelTrainer(Dataset):
             except AttributeError:
                 logger.error(
                     "scaler not defined: Please fit a scaler before saving \
-                            it by calling ModelTrainer.prepare_train_test_set()"
+it by calling ModelTrainer.prepare_train_test_set()"
                 )
         if model:
             save_file(
@@ -106,7 +106,7 @@ class ModelTrainer(Dataset):
         except AttributeError:
             logger.error(
                 "X_train, Y_train not defined: Please prepare train and test \
-                        set before training by calling ModelTrainer.prepare_train_test_set()"
+set before training by calling ModelTrainer.prepare_train_test_set()"
             )
             return
         logger.info("Training %s", self.model_type)
@@ -244,7 +244,7 @@ class ModelTrainer(Dataset):
         except AttributeError:
             logger.error(
                 "X_train, Y_train not defined: Please prepare train and test \
-                        set before training by calling ModelTrainer.prepare_train_test_set()"
+set before training by calling ModelTrainer.prepare_train_test_set()"
             )
         self.model = grid_search.best_estimator_
         return grid_search
