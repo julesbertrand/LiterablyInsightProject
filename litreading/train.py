@@ -1,3 +1,7 @@
+"""
+ModelTrainer class to train models and / or tune hyperparameters 
+"""
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -24,6 +28,21 @@ from litreading.config import (
 
 
 class ModelTrainer(Dataset):
+    """
+    Train models with default params on new data
+    Train models with personalized params
+    Tune hyperparameters
+    Methods: set_new_model, __set_estimator, get_model_params, set_model_params, save_model
+            train: model.fit
+            prepare_train_test_set: Dataset.preprocessing, Dataset.compute_features, remove outliers, train test split and scale features
+            evaluate_model: Dataset.statistics and error count by magnitude (1% ,5%, 10%)
+            grid_search: compute sklearn grid search on selected model with selected set of params and k-folds
+            feature_importance: plot the feature importance for current model. Only for RF and XGB.
+    Static methods: plot_grid_search: plot grid search results with seaborn with one param as x and one as hue
+                    plot_distribution: plot distributon of errors
+                    plot_scatter: scatter plot of y and x
+    """
+
     def __init__(
         self,
         df,
@@ -46,7 +65,12 @@ class ModelTrainer(Dataset):
             mode="train",
         )
 
-    def set_new_model(self, model_type, params={}, inplace=True):
+    @property
+    def model_type(self):
+        return self.__model_type
+
+    @staticmethod
+    def __set_estimator(model_type):
         if model_type == "RF":
             estimator = RandomForestRegressor(random_state=SEED)
         elif model_type == "XGB":
@@ -56,29 +80,37 @@ class ModelTrainer(Dataset):
         elif model_type == "Baseline":
             estimator = BaselineModel()
         else:
-            logger.error(
-                "Sorry, training for mode_type %s \
-                has not been implemented yet.",
-                model_type,
-            )
-            return
-        self.model_type = model_type
-        if params == "config_params":
-            params = DEFAULT_PARAMS[model_type]
-        logger.info("New model set: %s", model_type)
+            raise KeyError("Sorry, this model type has not been implemented yet")
+        return estimator
+
+    def set_new_model(self, model_type, params={}, inplace=True):
+        """ Set new models with chosen params """
+        estimator = self.__set_estimator(model_type)
+        self.__model_type = model_type
         if not inplace:
-            return estimator.set_params(**params)
-        self.model = estimator
-        if params != {}:
-            self.set_model_params(params)
+            return estimator
+        self.__model = estimator
+        self.set_model_params(params)
+        logger.info("New model set: %s", model_type)
+
+    def get_model_params(self):
+        return self.__model.get_params()
 
     def set_model_params(self, params={}):
+        """ default sklearn params, default config.py params of personalized params """
         if params == "config_params":
-            params = DEFAULT_PARAMS[self.model_type]
-        self.model.set_params(**params)
+            params = DEFAULT_PARAMS[self.__model_type]
+            self.__model.set_params(**params)
+        elif isinstance(params, dict):
+            if params != {}:
+                self.__model.set_params(**params)
+        else:
+            raise TypeError(
+                "Expected: 'config_params' or dictionnary of params names: params value"
+            )
 
     def save_model(self, scaler=False, model=False, replace=False):
-        """Save both scaler and trained / untrained model"""
+        """ Save both scaler and trained / untrained model with params in joblib in config.MODELS_PATH"""
         if scaler:
             try:
                 save_file(
@@ -94,13 +126,14 @@ it by calling ModelTrainer.prepare_train_test_set()"
                 )
         if model:
             save_file(
-                self.model,
+                self.__model,
                 path=MODELS_PATH,
-                file_name=self.model_type + ".joblib",
+                file_name=self.__model_type + ".joblib",
                 replace=replace,
             )
 
     def train(self):
+        """ If test and train set were prepared before, will train current model with current params """
         try:
             self.X_train
         except AttributeError:
@@ -109,12 +142,25 @@ it by calling ModelTrainer.prepare_train_test_set()"
 set before training by calling ModelTrainer.prepare_train_test_set()"
             )
             return
-        logger.info("Training %s", self.model_type)
-        self.model = self.model.fit(self.X_train, self.Y_train)
+        # reset model to blank
+        params = self.__model.get_params()
+        self.__model = self.__set_estimator(self.__model_type)
+        self.set_model_params(params)
+        # train
+        logger.info("Training %s", self.__model_type)
+        self.__model = self.__model.fit(self.X_train, self.Y_train)
 
     def prepare_train_test_set(
         self, remove_outliers=False, outliers_tol=0.1, test_set_size=0.2, inplace=True
     ):
+        """
+        if not Inplace, return X_train, X_test, Y_train, Y_test
+        Preprocess data using Dataset.preprocess_data()
+        Compute features using Dataset.compute_features()
+        Remove outliers if remove_outliers = True (default: False) with tol=outliers_tol (default: .1)
+        Split train and test set using sklearn.model_selection.train_test_split()
+        Scale (fit transform) using sklearn.preprocessing.StandardScaler()
+        """
         # Preprocessing data
         self.preprocess_data(**PREPROCESSING_STEPS, inplace=True)
         # create dataframe of features with Dataset.compute_features()
@@ -151,7 +197,11 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
             self.Y_train, self.Y_test = Y_train, Y_test
 
     def evaluate_model(self, visualize=True):
-        Y_pred = self.model.predict(self.X_test)
+        """
+        Return 3 DataFrames: statistics for each row, summary of statistics per bin, summary fo error counts per bin
+        bins are <75 wcpm, 75-150 wcpm and 150+ wcpm
+        """
+        Y_pred = self.__model.predict(self.X_test)
         stats = self.compute_stats(Y_pred, self.test_idx)
         # creating 3 groups of datapoints based on human_wcpm
         assign_wcpm_bin = (
@@ -199,6 +249,10 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
     def grid_search(
         self, model_type, cv_params, cv_folds=5, verbose=2, scoring_metric="r2"
     ):
+        """
+        Perform sklearn.model_selection.GridSearch() on model model_type with params cv_params
+        For other information see sklearn documentation
+        """
         params = (
             dict()
         )  # for params in cv_params with unique value, set directly to estimator
@@ -208,9 +262,7 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
                 params[key] = value[0]
             else:
                 params_grid[key] = value
-        estimator = self.set_new_model(
-            model_type=model_type, params=params, inplace=False
-        )
+        estimator = self.set_new_model(model_type=model_type, inplace=False)
         print("\n" + " Estimator: ".center(120, "-"))
         print(estimator.__class__.__name__)
         print("\n" + " Metric for evaluation: ".center(120, "-"))
@@ -246,11 +298,16 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
                 "X_train, Y_train not defined: Please prepare train and test \
 set before training by calling ModelTrainer.prepare_train_test_set()"
             )
-        self.model = grid_search.best_estimator_
+        self.__model = grid_search.best_estimator_
         return grid_search
 
     @staticmethod
     def plot_grid_search(cv_results, x, hue=None, y="mean_test_score", log_scale=True):
+        """
+        Will plot the mean_test_score (or other metric if you choose)
+        For parameters x and hue using seaborn
+        log_scale = True to plot with a log_scale on x axis
+        """
         # Get Test Scores Mean and std for each grid search
         cv_results = pd.DataFrame(cv_results)
         if hue is not None:
@@ -279,7 +336,7 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
             features: names of the features
             threshold: minimum feature importance for the feature to be plotted
         """
-        importance = self.model.feature_importances_
+        importance = self.__model.feature_importances_
         idx = [x[0] for x in enumerate(importance) if x[1] > threshold]
         labels = self.features.columns[idx]
         importance = importance[idx]
@@ -296,6 +353,7 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
 
     @staticmethod
     def plot_wcpm_distribution(stats, x, stat="count", binwidth=0.01):
+        """ Plot distribution of stats[stat] from x in bins of bin_width """
         plt.style.use("seaborn-darkgrid")
         _, ax = plt.subplots(1, 1, figsize=(16, 6))
         sns.histplot(ax=ax, data=stats, x=x, stat=stat, binwidth=binwidth)
@@ -308,6 +366,10 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
 
     @staticmethod
     def plot_wcpm_scatter(stats, x="human_wcpm", y="wcpm_estimation_error_%"):
+        """
+        Scatter plot of x and y in stats to be choosen by user
+        Default x='human_wcpm' and y='wcpm_estimation_error_%'
+        """
         plt.style.use("seaborn-darkgrid")
         _, ax = plt.subplots(1, 1, figsize=(16, 6))
         sns.scatterplot(data=stats, x=x, y=y)
@@ -317,16 +379,3 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
         if "%" in y:
             ax.yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
         plt.show()
-
-
-if __name__ == "__main__":
-    df = pd.read_csv("./data/wcpm_more.csv")
-    # print(df.head())
-    df = df.loc[:50]
-    trainer = ModelTrainer(df, model_type="XGB")
-    trainer.prepare_train_test_set(remove_outliers=True, outliers_tol=0.2)
-    trainer.train()
-    trainer.train()
-    stats, stats_sum, error_sum = trainer.evaluate_model(visualize=True)
-    print(stats_sum)
-    print(error_sum)

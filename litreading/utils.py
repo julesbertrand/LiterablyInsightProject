@@ -1,3 +1,7 @@
+"""
+Helper functions: open_file and save_file
+Classes: BaselineModel with methods get_params, set_params, fit and predict
+"""
 import os
 import errno
 import logging
@@ -22,6 +26,7 @@ logger.setLevel(logging.INFO)
 
 
 def open_file(file_path, sep=";"):
+    """ Function to open files from filepath, either cs or joblib or pkl """
     _, extension = file_path.rsplit(".", 1)
     if not os.path.exists(file_path):
         raise FileNotFoundError(file_path)
@@ -33,7 +38,8 @@ def open_file(file_path, sep=";"):
 
 
 def save_file(file, path, file_name, replace=False):
-    """save file with or without replacing previous versions, in cv or pkl
+    """
+    Save file with or without replacing previous versions, in cv or pkl
     input: file: python model or df to save
             path: path to save to
             file_name: name to give to the file, including extension
@@ -65,6 +71,11 @@ def save_file(file, path, file_name, replace=False):
 
 
 class BaselineModel:
+    """
+    Baseline Model for litreading is only longest common subsequence, no moedl fit after
+    Therefore this class is here only to provide fit, predict and get or set_params methods to the baseline model
+    """
+
     def __init__(self):
         self.name = "BaselineModel"
 
@@ -72,10 +83,10 @@ class BaselineModel:
         return self
 
     def set_params(self, **params):
-        logger.info("No params to be set in Baseline model")
+        pass
 
     def get_params(self, **params):
-        logger.info("No params in Baseline model")
+        return {}
 
     def predict(self, X_test):
         # prediction is the word correct count based on differ list

@@ -27,6 +27,7 @@ DEFAULT_MODEL_FILES = {
 }
 # Default parameters config for training each type of model, can be updated.
 DEFAULT_PARAMS = {
+    "Baseline": {},
     "RF": {
         "max_features": 6,
         "n_estimators": 600,

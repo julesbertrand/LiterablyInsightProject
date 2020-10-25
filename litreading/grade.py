@@ -1,3 +1,7 @@
+"""
+DataGrader class to predict WCPM
+"""
+
 import os
 import errno
 
@@ -17,11 +21,20 @@ from litreading.config import (
 
 # main function
 def grade_wcpm(df, only_wcpm=False):
+    """ Instanciate Datagrader and grade """
     data = DataGrader(df)
     return data.grade_wcpm(only_wcpm=only_wcpm)
 
 
 class DataGrader(Dataset):
+    """
+    Grader tool
+    Methods: set_model
+            grade_wcpm: will run Dataset.preprocessing, Dataset.compute_features and self.estimate_wcpm
+            estimate_wcpm: use the model on Dataset.features to estimate wcpm
+    Static methods: __load_model
+    """
+
     def __init__(
         self,
         df,
@@ -42,7 +55,9 @@ class DataGrader(Dataset):
         self.model_type = None
         self.set_model(model_type)
 
-    def __load_model(self, model_file, print_info=False):
+    @staticmethod
+    def __load_model(model_file, print_info=False):
+        """ Used to load scaler or model using utils.open_file() """
         model_path = MODELS_PATH + model_file
         if print_info:
             logger.info("Loading model from %s", model_path)
@@ -71,7 +86,7 @@ Please choose in '%s'."
             self.model_type = model_type
 
     def grade_wcpm(self, only_wcpm=False):
-        """preprocess, compute features and give grade all in one function"""
+        """preprocess, compute features and give grade all in one function """
         self.preprocess_data(**PREPROCESSING_STEPS, inplace=True)
         self.compute_features(inplace=True)
         self.estimate_wcpm(inplace=True)
@@ -81,7 +96,7 @@ Please choose in '%s'."
             return self.get_data()
 
     def estimate_wcpm(self, inplace=False):
-        """take current model and estimate the wcpm with it"""
+        """ Scale features, use current model to estimate the wcpm """
         logger.debug("Estimating wcpm")
         self.features = self.scaler.transform(self.features)
         wcpm = self.model.predict(self.features)
@@ -91,10 +106,3 @@ Please choose in '%s'."
             return wcpm
         else:
             self.data["wcpm_estimation"] = wcpm
-
-
-if __name__ == "__main__":
-    df = pd.read_csv("./data/wcpm_more.csv")
-    d = DataGrader(df.drop(columns="human_transcript").loc[:20], model_type="XGB")
-    d.grade_wcpm()
-    print(d.data.head(20))
