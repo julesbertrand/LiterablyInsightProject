@@ -263,6 +263,7 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
             else:
                 params_grid[key] = value
         estimator = self.set_new_model(model_type=model_type, inplace=False)
+        estimator.set_params(**params)
         print("\n" + " Estimator: ".center(120, "-"))
         print(estimator.__class__.__name__)
         print("\n" + " Metric for evaluation: ".center(120, "-"))
