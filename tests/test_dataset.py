@@ -37,7 +37,7 @@ def test_dataset_preprocess_data():
     assert df_test.equals(df[["prompt", "asr_transcript"]])
 
 
-def test_dataset_compare_text_1():
+def test_dataset_LCS_1():
     obj = Dataset(DF_TEST)
     string_a = "I am testing this algorithm and I hope it will no raise an error biip"
     string_b = "I am testin this algorithm and I hopit will no raise an aerror"
@@ -62,21 +62,21 @@ def test_dataset_compare_text_1():
         "+ aerror",
         "? +\n",
     ]
-    assert result == obj.compare_text(string_a, string_b, split_car=" ")
+    assert result == obj.longest_common_subsequence(string_a, string_b, split_car=" ")
 
 
-def test_dataset_compare_text_2():
+def test_dataset_LCS_2():
     obj = Dataset(DF_TEST)
     string_a = "I am testing this algorithm and I will no raise an aerror biip"
     string_b = ""
     result = ["+ "]
-    assert result == obj.compare_text(string_a, string_b, split_car=" ")
+    assert result == obj.longest_common_subsequence(string_a, string_b, split_car=" ")
 
 
 def test_dataset_differ_list():
     obj = Dataset(DF_TEST)
     obj.preprocess_data(inplace=True)
-    df = obj.compute_differ_list(col_1="prompt", col_2="asr_transcript", inplace=False)
+    df = obj.compute_differ_lists(col_1="prompt", col_2="asr_transcript", inplace=False)
     df_test = pd.read_csv(ABS_PATH + "/test_data/test_differ_lists.csv", sep=";")
     df_test = df_test.applymap(ast.literal_eval)
     assert df_test["differ_list"].equals(df)
