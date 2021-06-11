@@ -1,30 +1,29 @@
 """
-ModelTrainer class to train models and / or tune hyperparameters 
+ModelTrainer class to train models and / or tune hyperparameters
 """
 
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
-import seaborn as sns
 import itertools
 
-from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
+import numpy as np
+import pandas as pd
+import seaborn as sns
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.preprocessing import StandardScaler
 from xgboost import XGBRegressor
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import make_scorer
 
-from litreading.utils import logger, save_file, open_file, BaselineModel
-from litreading.dataset import Dataset
 from litreading.config import (
+    DEFAULT_MODEL_TYPE,
+    DEFAULT_PARAMS,
     MODELS_PATH,
     PREPROCESSING_STEPS,
     SEED,
-    DEFAULT_MODEL_TYPE,
-    DEFAULT_PARAMS,
 )
+from litreading.dataset import Dataset
+from litreading.utils import BaselineModel, logger, save_file
 
 
 class ModelTrainer(Dataset):
@@ -204,10 +203,9 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
         Y_pred = self.__model.predict(self.X_test)
         stats = self.compute_stats(Y_pred, self.test_idx)
         # creating 3 groups of datapoints based on human_wcpm
-        assign_wcpm_bin = (
+        stats["wcpm_bin"] = stats["human_wcpm"].apply(
             lambda x: "<75" if x < 75 else ("75-150" if x < 150 else "150+")
         )
-        stats["wcpm_bin"] = stats["human_wcpm"].apply(assign_wcpm_bin)
         # computing mean and std of stats for each bin
         stats_summary = stats.groupby("wcpm_bin").agg(["mean", "std"])
         stats_summary.loc["total"] = stats.agg(["mean", "std"]).unstack()
@@ -235,9 +233,7 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
         errors_summary = stats[list(d.keys()) + ["wcpm_bin"]].groupby("wcpm_bin")
         errors_summary = errors_summary.agg(agg_funcs)
         errors_summary.columns.set_levels(["count", "% of bin"], level=1, inplace=True)
-        temp = (
-            stats[list(d.keys())].agg(agg_funcs).unstack()
-        )  # for total count and % of test set
+        temp = stats[list(d.keys())].agg(agg_funcs).unstack()  # for total count and % of test set
         temp.index.set_levels(["count", "% of bin"], level=1, inplace=True)
         errors_summary.loc["total"] = temp
         if visualize:
@@ -246,16 +242,12 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
             )
         return stats, stats_summary, errors_summary
 
-    def grid_search(
-        self, model_type, cv_params, cv_folds=5, verbose=2, scoring_metric="r2"
-    ):
+    def grid_search(self, model_type, cv_params, cv_folds=5, verbose=2, scoring_metric="r2"):
         """
         Perform sklearn.model_selection.GridSearch() on model model_type with params cv_params
         For other information see sklearn documentation
         """
-        params = (
-            dict()
-        )  # for params in cv_params with unique value, set directly to estimator
+        params = dict()  # for params in cv_params with unique value, set directly to estimator
         params_grid = dict()  # for params to be actually cross-validated
         for key, value in cv_params.items():
             if len(value) == 1:
@@ -275,10 +267,7 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
         [print(key, value) for key, value in params_grid.items()]
         params_list = list(itertools.product(*params_grid.values()))
         n_combi = len(params_list)
-        print(
-            "\n"
-            + " # of possible combinations to be cross-validated: {:d}".format(n_combi)
-        )
+        print("\n" + " # of possible combinations to be cross-validated: {:d}".format(n_combi))
         answer = input("\n" + "Continue with these c-v parameters ? (y/n)  ")
         if answer == "n" or answer == "no":
             print("Please redefine inputs.")

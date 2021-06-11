@@ -1,13 +1,12 @@
-import numpy as np
-import pandas as pd
 import os
-import pytest
+
+import pandas as pd
 
 from litreading import BaselineModel, open_file
 
 
 def test_utils_Baseline():
-    obj = BaselineModel()
+    BaselineModel()
 
 
 def test_utils_open_file():

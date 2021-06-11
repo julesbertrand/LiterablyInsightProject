@@ -2,17 +2,11 @@
 Helper functions: open_file and save_file
 Classes: BaselineModel with methods get_params, set_params, fit and predict
 """
-import os
-import errno
 import logging
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
-import seaborn as sns
+import os
 
 import joblib
+import pandas as pd
 
 from litreading.config import MODELS_PATH
 
@@ -57,9 +51,7 @@ def save_file(file, path, file_name, replace=False):
             pass
     else:
         i = 0
-        while os.path.exists(
-            path + ".".join((file_name + "_{:d}".format(i), extension))
-        ):
+        while os.path.exists(path + ".".join((file_name + "_{:d}".format(i), extension))):
             i += 1
         file_name += "_{:d}".format(i)
     file_name = ".".join((file_name, extension))

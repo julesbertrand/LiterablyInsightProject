@@ -2,17 +2,16 @@
 Dataset Class to open, preprocess and transform data
 """
 
+import ast  # preprocessing ast to litteral
+import difflib  # text comparison
+import re  # preprocessing
+import string  # preprocessing punctuation
+
 import numpy as np
 import pandas as pd
-
-import ast  # preprocessing ast to litteral
-import re  # preprocessing
 from num2words import num2words  # preprocessing
-import string  # preprocessing punctuation
-import difflib  # text comparison
 
-from litreading.config import MODELS_PATH
-from litreading.utils import logger, save_file, open_file, BaselineModel
+from litreading.utils import logger, save_file
 
 
 class Dataset:
@@ -104,8 +103,8 @@ class Dataset:
 
             def converter(s):
                 if len(s) == 4:
-                    return re.sub("\d+", lambda y: num2words(y.group(), to="year"), s)
-                return re.sub("\d+", lambda y: num2words(y.group()), s)
+                    return re.sub("\d+", lambda y: num2words(y.group(), to="year"), s)  # noqa
+                return re.sub("\d+", lambda y: num2words(y.group()), s)  # noqa
 
             df = df.applymap(converter)
         if punctuation_free:
@@ -189,9 +188,7 @@ class Dataset:
                 elif word[0] == "-":
                     sub += 1
                 j = 1
-                while (
-                    i + j < n and differ_list[i + j][0] == "?"
-                ):  # account for ? in skip_next
+                while i + j < n and differ_list[i + j][0] == "?":  # account for ? in skip_next
                     j += 1
                 # two cases for replaced words: + - or - +
                 plus_minus = word[0] == "+" and differ_list[i + j][0] == "-"
@@ -242,9 +239,7 @@ class Dataset:
             ],
         )
         features.drop(columns=["errors_dict"], inplace=True)
-        features["asr_word_count"] = self.data[self.asr_col].apply(
-            lambda x: len(x.split())
-        )
+        features["asr_word_count"] = self.data[self.asr_col].apply(lambda x: len(x.split()))
         features = features.div(self.data[self.duration_col] / 60, axis=0)
         features = features.add_suffix("_pm")
         temp_prompt = self.data[self.prompt_col].apply(self.stats_length_of_words)

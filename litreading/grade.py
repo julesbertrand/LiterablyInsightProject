@@ -2,22 +2,18 @@
 DataGrader class to predict WCPM
 """
 
-import os
-import errno
-
-import numpy as np
 import pandas as pd
 
-from litreading.utils import logger, save_file, open_file, BaselineModel
-from litreading.dataset import Dataset
 from litreading.config import (
+    AVAILABLE_MODEL_TYPES,
+    DEFAULT_MODEL_FILES,
+    DEFAULT_MODEL_TYPE,
     MODELS_PATH,
     PREPROCESSING_STEPS,
-    AVAILABLE_MODEL_TYPES,
-    DEFAULT_MODEL_TYPE,
-    DEFAULT_MODEL_FILES,
-    DEFAULT_PARAMS,
 )
+from litreading.dataset import Dataset
+from litreading.utils import BaselineModel, logger, open_file
+
 
 # main function
 def grade_wcpm(df, only_wcpm=False):
@@ -74,9 +70,7 @@ class DataGrader(Dataset):
             if model_type == "Baseline":
                 self.model = BaselineModel()
             elif model_type in AVAILABLE_MODEL_TYPES:
-                self.model = self.__load_model(
-                    DEFAULT_MODEL_FILES[model_type], print_info=True
-                )
+                self.model = self.__load_model(DEFAULT_MODEL_FILES[model_type], print_info=True)
             else:
                 raise AttributeError(
                     "No such model is available. \

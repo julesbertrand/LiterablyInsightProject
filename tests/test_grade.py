@@ -1,9 +1,8 @@
-import pandas as pd
-import pytest
 import os
 
+import pandas as pd
+
 from litreading.grade import DataGrader, grade_wcpm
-from litreading.utils import save_file
 
 # logger.setLevel(logging.CRITICAL)
 
@@ -14,7 +13,7 @@ DF_TEST = pd.read_csv(ABS_PATH + TEST_PATH)
 
 def test_grade_datagrader_class():
     for model_type in ["Baseline", "RF", "KNN", "XGB"]:
-        obj = DataGrader(DF_TEST, model_type=model_type)
+        DataGrader(DF_TEST, model_type=model_type)
 
 
 def test_grade_set_model():
@@ -28,15 +27,11 @@ def test_grade_estimate_wcpm():
     features = pd.read_csv(ABS_PATH + "/test_data/test_data_features.csv", sep=";")
     obj.features = features
     estimations = obj.estimate_wcpm(inplace=False)
-    estimations_test = pd.read_csv(
-        ABS_PATH + "/test_data/test_data_wcpm_estimations.csv", sep=";"
-    )
+    estimations_test = pd.read_csv(ABS_PATH + "/test_data/test_data_wcpm_estimations.csv", sep=";")
     estimations.equals(estimations_test["wcpm_estimation"])
 
 
 def test_grade_grade_wcpm():
     grades = grade_wcpm(DF_TEST, only_wcpm=True)
-    grades_test = pd.read_csv(
-        ABS_PATH + "/test_data/test_data_wcpm_estimations.csv", sep=";"
-    )
+    grades_test = pd.read_csv(ABS_PATH + "/test_data/test_data_wcpm_estimations.csv", sep=";")
     grades.equals(grades_test["wcpm_estimation"])

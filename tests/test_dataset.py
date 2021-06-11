@@ -1,8 +1,9 @@
-import pandas as pd
-import os
-import pytest
-import logging
 import ast
+import logging
+import os
+
+import pandas as pd
+import pytest
 
 from litreading.dataset import Dataset
 from litreading.utils import logger
@@ -15,7 +16,7 @@ DF_TEST = pd.read_csv(ABS_PATH + TEST_PATH)
 
 
 def test_dataset_class():
-    obj = Dataset(DF_TEST)
+    Dataset(DF_TEST)
 
 
 def test_dataset_get_data():
