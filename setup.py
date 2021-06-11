@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 
 setup(
     name="litreading",
@@ -7,7 +7,7 @@ setup(
     author_email="julesbertrand13@gmail.com",
     url="https://github.com/julesbertrand/litreading-insight-project.git",
     license="MIT license",
-    packages=["litreading"],
+    packages=find_packages(include=["litreading"]),
     install_requires=[
         "numpy",
         "pandas",
