@@ -3,6 +3,7 @@ ModelTrainer class to train models and / or tune hyperparameters
 """
 
 import itertools
+from typing import Any, Dict, Tuple, Union
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
@@ -44,23 +45,23 @@ class ModelTrainer(Dataset):
 
     def __init__(
         self,
-        df,
-        model_type=DEFAULT_MODEL_TYPE,
-        prompt_col="prompt",
-        asr_col="asr_transcript",
-        human_col="human_transcript",
-        duration_col="scored_duration",
-        human_wcpm_col="human_wcpm",
+        df: pd.DataFrame,
+        model_type: str = DEFAULT_MODEL_TYPE,
+        prompt_col: str = "prompt",
+        asr_col: str = "asr_transcript",
+        human_col: str = "human_transcript",
+        duration_col: str = "scored_duration",
+        human_wcpm_col: str = "human_wcpm",
     ):
         self.set_new_model(model_type)
         Dataset.__init__(
             self,
             df=df,
-            prompt_col="prompt",
-            asr_col="asr_transcript",
-            human_col="human_transcript",
-            duration_col="scored_duration",
-            human_wcpm_col="human_wcpm",
+            prompt_col=prompt_col,
+            asr_col=asr_col,
+            human_col=human_col,
+            duration_col=duration_col,
+            human_wcpm_col=human_wcpm_col,
             mode="train",
         )
 
@@ -69,7 +70,7 @@ class ModelTrainer(Dataset):
         return self.__model_type
 
     @staticmethod
-    def __set_estimator(model_type):
+    def __set_estimator(model_type: str):
         if model_type == "RF":
             estimator = RandomForestRegressor(random_state=SEED)
         elif model_type == "XGB":
@@ -82,33 +83,31 @@ class ModelTrainer(Dataset):
             raise KeyError("Sorry, this model type has not been implemented yet")
         return estimator
 
-    def set_new_model(self, model_type, params={}, inplace=True):
+    def set_new_model(self, model_type: str, params: Dict[str, Any] = None):
         """ Set new models with chosen params """
         estimator = self.__set_estimator(model_type)
         self.__model_type = model_type
-        if not inplace:
-            return estimator
         self.__model = estimator
+        if params is None:
+            params = {}
         self.set_model_params(params)
         logger.info("New model set: %s", model_type)
 
     def get_model_params(self):
         return self.__model.get_params()
 
-    def set_model_params(self, params={}):
+    def set_model_params(self, params: Union[dict, str]):
         """ default sklearn params, default config.py params of personalized params """
-        if params == "config_params":
+        if params == "default":
             params = DEFAULT_PARAMS[self.__model_type]
             self.__model.set_params(**params)
         elif isinstance(params, dict):
             if params != {}:
                 self.__model.set_params(**params)
         else:
-            raise TypeError(
-                "Expected: 'config_params' or dictionnary of params names: params value"
-            )
+            raise TypeError("Expected: 'default' or dictionnary of params names: params value")
 
-    def save_model(self, scaler=False, model=False, replace=False):
+    def save_model(self, scaler: bool = False, model: bool = False, replace: bool = False):
         """ Save both scaler and trained / untrained model with params in joblib in config.MODELS_PATH"""
         if scaler:
             try:
@@ -150,7 +149,11 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
         self.__model = self.__model.fit(self.X_train, self.Y_train)
 
     def prepare_train_test_set(
-        self, remove_outliers=False, outliers_tol=0.1, test_set_size=0.2, inplace=True
+        self,
+        remove_outliers: bool = False,
+        outliers_tol: float = 0.1,
+        test_set_size: float = 0.2,
+        inplace: bool = True,
     ):
         """
         if not Inplace, return X_train, X_test, Y_train, Y_test
@@ -191,11 +194,12 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
         X_test = self.scaler.transform(X_test_raw)
         if not inplace:
             return X_train, X_test, Y_train, Y_test
-        else:
-            self.X_train, self.X_test = X_train, X_test
-            self.Y_train, self.Y_test = Y_train, Y_test
+        self.X_train, self.X_test = X_train, X_test
+        self.Y_train, self.Y_test = Y_train, Y_test
 
-    def evaluate_model(self, visualize=True):
+    def evaluate_model(
+        self, visualize: bool = True
+    ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """
         Return 3 DataFrames: statistics for each row, summary of statistics per bin, summary fo error counts per bin
         bins are <75 wcpm, 75-150 wcpm and 150+ wcpm
@@ -242,7 +246,14 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
             )
         return stats, stats_summary, errors_summary
 
-    def grid_search(self, model_type, cv_params, cv_folds=5, verbose=2, scoring_metric="r2"):
+    def grid_search(
+        self,
+        model_type: str,
+        cv_params: Dict[str, Any],
+        cv_folds: int = 5,
+        verbose: int = 2,
+        scoring_metric: str = "r2",
+    ):
         """
         Perform sklearn.model_selection.GridSearch() on model model_type with params cv_params
         For other information see sklearn documentation
@@ -292,7 +303,13 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
         return grid_search
 
     @staticmethod
-    def plot_grid_search(cv_results, x, hue=None, y="mean_test_score", log_scale=True):
+    def plot_grid_search(
+        cv_results: pd.DataFrame,
+        x: str,
+        hue: str = None,
+        y: str = "mean_test_score",
+        log_scale: bool = True,
+    ):
         """
         Will plot the mean_test_score (or other metric if you choose)
         For parameters x and hue using seaborn
@@ -319,7 +336,7 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
         ax.grid("on")
         plt.show()
 
-    def feature_importance(self, threshold=0.001):
+    def feature_importance(self, threshold: float = 0.001):
         """
         Compute and plot feature importance for tree based methods from sklearn or similar
         input: model already fitted
@@ -342,10 +359,10 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
         plt.show()
 
     @staticmethod
-    def plot_wcpm_distribution(stats, x, stat="count", binwidth=0.01):
+    def plot_wcpm_distribution(stats, x: str, stat: str = "count", binwidth: float = 0.01):
         """ Plot distribution of stats[stat] from x in bins of bin_width """
         plt.style.use("seaborn-darkgrid")
-        _, ax = plt.subplots(1, 1, figsize=(16, 6))
+        fig, ax = plt.subplots(1, 1, figsize=(16, 6))
         sns.histplot(ax=ax, data=stats, x=x, stat=stat, binwidth=binwidth)
         ax.set_title("Distribution of errors", fontsize=20, fontweight="bold")
         ax.set_xlabel(x, fontsize=16)
@@ -355,7 +372,7 @@ set before training by calling ModelTrainer.prepare_train_test_set()"
         plt.show()
 
     @staticmethod
-    def plot_wcpm_scatter(stats, x="human_wcpm", y="wcpm_estimation_error_%"):
+    def plot_wcpm_scatter(stats, x: str = "human_wcpm", y: str = "wcpm_estimation_error_%"):
         """
         Scatter plot of x and y in stats to be choosen by user
         Default x='human_wcpm' and y='wcpm_estimation_error_%'

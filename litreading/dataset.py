@@ -6,6 +6,7 @@ import ast  # preprocessing ast to litteral
 import difflib  # text comparison
 import re  # preprocessing
 import string  # preprocessing punctuation
+from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -28,55 +29,60 @@ class Dataset:
 
     def __init__(
         self,
-        df,
-        prompt_col="prompt",
-        asr_col="asr_transcript",
-        human_col="human_transcript",
-        duration_col="scored_duration",
-        human_wcpm_col="human_wcpm",
-        mode="predict",
+        df: pd.DataFrame,
+        prompt_col: str = "prompt",
+        asr_col: str = "asr_transcript",
+        human_col: str = "human_transcript",
+        duration_col: str = "scored_duration",
+        human_wcpm_col: str = "human_wcpm",
+        mode: str = "predict",
     ):
-        self.data_raw = df
-        self.data = self.data_raw.copy()
+        self.__data_raw = df
+        self._data = self.__data_raw.copy()
         # columns names
         self.prompt_col = prompt_col
         self.asr_col = asr_col
         self.human_col = human_col
         self.duration_col = duration_col
         self.human_wcpm_col = human_wcpm_col
-        # mode can be train or predict, influence on how certain methods will be used
+        if mode not in ["train", "predict"]:
+            raise ValueError("mode must be train or predict")
         self.mode = mode
 
-    def get_data(self):
-        return self.data
+    @property
+    def data(self) -> pd.DataFrame:
+        return self._data
 
-    def get_features(self):
-        return self.features
+    @property
+    def features(self) -> pd.DataFrame:
+        return self._features
 
-    def save_data(self, filename, path):
+    def save_data(self, dirpath: str, filename: str):
         """ Sav data using utils.save_file() """
-        save_file(self.data, path, filename, replace=False)
+        save_file(self.data, dirpath, filename, replace=False)
 
-    def print_row(self, col_names=[], index=-1):
+    def print_row(self, col_names: List[str] = None, index: int = -1):
         """ Print desired columns col_names at desired index (if -1, all data is printed)"""
-        if len(col_names) == 0:
-            col_names = self.data.columns
-        if index != -1:
+        if col_names is None:
+            col_names = list(self.data.columns)
+        if index == -1:
+            print(self.data[col_names])
+        elif index >= 0:
             for col in col_names:
                 print(col)
                 print(self.data[col].iloc[index])
                 print("\n")
         else:
-            print(self.data[col_names])
+            raise ValueError(f"index must be -1 or >= 0. Current: {index}")
 
     def preprocess_data(
         self,
-        lowercase=True,
-        punctuation_free=True,
-        convert_num2words=True,
-        asr_string_recomposition=False,
-        inplace=False,
-    ):
+        lowercase: bool = True,
+        punctuation_free: bool = True,
+        convert_num2words: bool = True,
+        asr_string_recomposition: bool = False,
+        inplace: bool = False,
+    ) -> Union[None, pd.DataFrame]:
         """
         Preprocessing data to make it standard and comparable
         If not inplace, return pd.DataFrame with preprocessed data
@@ -91,13 +97,16 @@ class Dataset:
         if self.mode == "train":
             columns.append(self.human_col)
         df = self.data[columns].copy()
+
         if asr_string_recomposition:
             logger.debug("Recomposing ASR string from dict")
             df = df.applymap(ast.literal_eval)
             df = df.applymap(lambda x: " ".join([e["text"] for e in x]))
+
         if lowercase:
             logger.debug("Converting df to lowercase")
             df = df.applymap(lambda x: str(x).lower())
+
         if convert_num2words:
             logger.debug("Converting numbers to words")
 
@@ -107,6 +116,7 @@ class Dataset:
                 return re.sub("\d+", lambda y: num2words(y.group()), s)  # noqa
 
             df = df.applymap(converter)
+
         if punctuation_free:
             # remove punctuation
             logger.debug("Removing punctuation")
@@ -117,15 +127,15 @@ class Dataset:
                 return str(" ".join(s.split()))
 
             df.applymap(lambda x: remove_punctuation(x, t))
+
         df.fillna(" ", inplace=True)
 
         if not inplace:
             return df
-        else:
-            self.data[columns] = df
+        self.data[columns] = df
 
     @staticmethod
-    def longest_common_subsequence(string_a, string_b, split_car=" "):
+    def longest_common_subsequence(str_a: str, str_b: str, split_car: str = " "):
         """
         Return differ_list: difflib.Differ.compare() output
         Compare string a and b split by split_care
@@ -133,9 +143,9 @@ class Dataset:
         Remove text surplus at the end.
         Used in self.compute_differ_lists()
         """
-        differ_list = difflib.Differ().compare(
-            str(string_a).split(split_car), str(string_b).split(split_car)
-        )
+        if not isinstance(str_a, str) or not isinstance(str_b, str):
+            raise TypeError("Compared strings must be of string type")
+        differ_list = difflib.Differ().compare(str_a.split(split_car), str_b.split(split_car))
         differ_list = list(differ_list)
 
         # if a lot characters at the end were added or removed from prompt
@@ -146,7 +156,7 @@ class Dataset:
                 differ_list.pop()
         return differ_list
 
-    def compute_differ_lists(self, col_1, col_2, inplace=False):
+    def compute_differ_lists(self, col_1: str, col_2: str, inplace: bool = False) -> List[str]:
         """
         Return pandas series of differ_lists
         Apply self.longest_common_subsequence() to two self.df columns
@@ -164,7 +174,7 @@ class Dataset:
             self.data["differ_list"] = temp
 
     @staticmethod
-    def get_errors_dict(differ_list):
+    def get_errors_dict(differ_list: List[str]) -> Tuple[int, int, int, int, Dict[str, Any]]:
         """
         Return number of correct, added, removed, replaced words and dict of errors
         Compute the list of replaced words detected (errors_dict)
@@ -204,7 +214,7 @@ class Dataset:
         return counter, add, sub, replaced, errors_dict
 
     @staticmethod
-    def stats_length_of_words(s, sep=" "):
+    def stats_length_of_words(s: str, sep: str = " ") -> Tuple[int, int]:
         """ Return the avg length of words in a string s, with separator sep. """
         s = s.split(sep)
         n = len(s)
@@ -215,7 +225,7 @@ class Dataset:
         std = round(np.std(s), 3)
         return mean, std
 
-    def compute_features(self, inplace=False):
+    def compute_features(self, inplace: bool = False) -> Union[None, pd.DataFrame]:
         """
         if not inplace, return features DataFrame
         Use longest_common_subsequence with selfcompute_differ_lists()
@@ -226,6 +236,7 @@ class Dataset:
         diff_list = self.compute_differ_lists(
             col_1=self.prompt_col, col_2=self.asr_col, inplace=False
         )
+
         logger.debug("Computing features")
         temp = diff_list.apply(self.get_errors_dict)
         features = pd.DataFrame(
@@ -240,25 +251,31 @@ class Dataset:
         )
         features.drop(columns=["errors_dict"], inplace=True)
         features["asr_word_count"] = self.data[self.asr_col].apply(lambda x: len(x.split()))
+
         features = features.div(self.data[self.duration_col] / 60, axis=0)
         features = features.add_suffix("_pm")
+
         temp_prompt = self.data[self.prompt_col].apply(self.stats_length_of_words)
         temp_prompt = pd.DataFrame(
             temp_prompt.to_list(),
             columns=["prompt_avg_word_length", "prompt_std_word_length"],
         )
+
         temp_asr = self.data[self.asr_col].apply(self.stats_length_of_words)
         temp_asr = pd.DataFrame(
             temp_asr.to_list(), columns=["asr_avg_word_length", "asr_std_word_length"]
         )
+
         features = pd.concat([features, temp_prompt, temp_asr], axis=1)
+
         if self.mode == "train":
             features["human_wcpm"] = self.data[self.human_wcpm_col]
-        self.features = features
-        if not inplace:
-            return self.features
 
-    def determine_outliers_mask(self, tol=0.2):
+        if not inplace:
+            return features
+        self._features = features
+
+    def determine_outliers_mask(self, tol: float = 0.2):
         """
         Return a mask with 0 for outliers and 1 for correct data
         In train mode, determine what rows have a too big difference \
@@ -267,12 +284,14 @@ between human and asr transcript length to be taken into account
 len(human_transcript) above which the row is considered an outlier
         """
         if self.mode != "train":
-            logger.error(
+            raise ValueError(
                 "You need to be in 'train' mode to determine outliers. 'predict' was passed."
             )
-            return
 
-        def determine_outlier(row, tol):
+        if not (0 <= tol):
+            raise ValueError(f"Invalid value for tol (must be float, >= 0). Current: {tol}")
+
+        def determine_outlier(row: int, tol: float) -> bool:
             """ Determine if row is an outlier with regards to tol """
             len_h = len(str(row[self.human_col]).split())
             len_a = len(str(row[self.asr_col]).split())
@@ -283,7 +302,7 @@ len(human_transcript) above which the row is considered an outlier
 
         return self.data.apply(lambda x: determine_outlier(x, tol), axis=1)
 
-    def compute_stats(self, Y_pred, test_idx):
+    def compute_stats(self, Y_pred: np.array, test_idx: np.array) -> pd.DataFrame:
         """
         Return a DataFrame of statistics about the wcpm estimation for train mode.
         Input: Y_pred: prediction on test set of words correct

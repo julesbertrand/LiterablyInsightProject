@@ -16,7 +16,7 @@ from litreading.utils import BaselineModel, logger, open_file
 
 
 # main function
-def grade_wcpm(df, only_wcpm=False):
+def grade_wcpm(df: pd.DataFrame, only_wcpm: bool = False) -> pd.DataFrame:
     """ Instanciate Datagrader and grade """
     data = DataGrader(df)
     return data.grade_wcpm(only_wcpm=only_wcpm)
@@ -54,7 +54,7 @@ class DataGrader(Dataset):
     @staticmethod
     def __load_model(model_file, print_info=False):
         """ Used to load scaler or model using utils.open_file() """
-        model_path = MODELS_PATH + model_file
+        model_path = MODELS_PATH / model_file
         if print_info:
             logger.info("Loading model from %s", model_path)
         model = open_file(model_path)
@@ -85,18 +85,16 @@ Please choose in '%s'."
         self.compute_features(inplace=True)
         self.estimate_wcpm(inplace=True)
         if only_wcpm:
-            return self.get_data()["wcpm_estimation"]
-        else:
-            return self.get_data()
+            return self.data["wcpm_estimation"]
+        return self.data
 
     def estimate_wcpm(self, inplace=False):
         """ Scale features, use current model to estimate the wcpm """
         logger.debug("Estimating wcpm")
-        self.features = self.scaler.transform(self.features)
-        wcpm = self.model.predict(self.features)
+        self._features = self.scaler.transform(self._features)
+        wcpm = self.model.predict(self._features)
         wcpm = pd.Series(wcpm, name="wcpm_estimation")
         wcpm = wcpm.apply(lambda x: round(x, 1))
         if not inplace:
             return wcpm
-        else:
-            self.data["wcpm_estimation"] = wcpm
+        self.data["wcpm_estimation"] = wcpm

@@ -1,8 +1,10 @@
 """ This is a configuration file """
 
+from pathlib import Path
+
 """Package paths - Please update before installation!"""
 # a path to a folder in which models are saved
-MODELS_PATH = "./litreading/models/"
+MODELS_PATH = Path("./litreading/models/")
 
 """ Preprocessing steps - Please update considering your preprocessing"""
 # preprocessing steps
