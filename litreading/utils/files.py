@@ -12,9 +12,10 @@ def open_file(filepath: Union[str, Path], sep: str = ";"):
     """Function to open files from filepath, either cs or joblib or pkl"""
     filepath = Path(filepath)
     extension = filepath.suffix
+    print(extension, filepath)
     if not filepath.exists():
         raise FileNotFoundError(filepath)
-    if extension == "csv":
+    if extension == ".csv":
         f = pd.read_csv(filepath, sep=sep)
     else:
         f = joblib.load(filepath)
