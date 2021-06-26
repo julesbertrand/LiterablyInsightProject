@@ -1,10 +1,41 @@
 from typing import Any, Dict
 
 import numpy as np
+import numpy.typing as npt
+import pandas as pd
 from sklearn import metrics
 
 
-def get_evaluation_metrics(y_true: np.array, y_pred: np.array) -> Dict[str, Any]:
+def compute_evaluation_report(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> pd.DataFrame:
+    """Compute evaluation report with metrics per bin of wcpm
+
+    Args:
+        y_true (npt.ArrayLike): [description]
+        y_pred (npt.ArrayLike): [description]
+
+    Returns:
+        pd.DataFrame: [description]
+    """
+    results = pd.DataFrame({"y": y_true, "yhat": y_pred})
+    results["bin"] = results["y"].apply(
+        lambda x: "<75" if x < 75 else ("75-150" if x < 150 else "150+")
+    )
+    groups = results.groupby("bin")
+    metrics = groups.apply(lambda x: pd.Series(get_evaluation_metrics(x["y"], x["yhat"])))
+    metrics["n_samples"] = groups.size()
+    return metrics
+
+
+def get_evaluation_metrics(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> Dict[str, Any]:
+    """Compute metrics for a given y_true and y_pred
+
+    Args:
+        y_true (npt.ArrayLike): [description]
+        y_pred (npt.ArrayLike): [description]
+
+    Returns:
+        Dict[str, Any]: Dict of metric_name: metric_value
+    """
     eval_metrics = {
         "ME": np.mean(y_true - y_pred),
         "MAE": metrics.mean_absolute_error(y_true, y_pred),
@@ -15,14 +46,14 @@ def get_evaluation_metrics(y_true: np.array, y_pred: np.array) -> Dict[str, Any]
     return eval_metrics
 
 
-def smape_loss(y_test, y_pred):
+def smape_loss(y_test: npt.ArrayLike, y_pred: npt.ArrayLike) -> float:
     """Symmetric mean absolute percentage error
     Addapted from https://github.com/alan-turing-institute/sktime/blob/15c5ccba8999ddfc52fe37fe4d6a7ff39a19ece3/sktime/performance_metrics/forecasting/_functions.py#L79
 
     Args:
-        y_test ([type]): pandas Series of shape = (fh,) where fh is the forecasting horizon
+        y_test (npt.ArrayLike): pandas Series of shape = (fh,) where fh is the forecasting horizon
             Ground truth (correct) target values.
-        y_pred ([type]): pandas Series of shape = (fh,)
+        y_pred (npt.ArrayLike): pandas Series of shape = (fh,)
         Estimated target values.
 
     Returns:

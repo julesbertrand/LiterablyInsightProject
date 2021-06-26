@@ -1,6 +1,5 @@
 from typing import Any, Dict, Literal, Union
 
-import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
@@ -12,7 +11,7 @@ from sklearn.pipeline import Pipeline
 
 from litreading.config import HUMAN_WCPM_COL, SEED
 from litreading.preprocessor import LCSPreprocessor
-from litreading.utils.evaluation import get_evaluation_metrics
+from litreading.utils.evaluation import compute_evaluation_report
 from litreading.utils.logging import logger
 
 
@@ -112,20 +111,14 @@ class Model:
             y_pred = self._model.predict(X_processed)
         return y_pred
 
-    def evaluate(self, X: np.array = None, y_true: np.array = None) -> pd.DataFrame:
+    def evaluate(self, X: npt.ArrayLike = None, y_true: npt.ArrayLike = None) -> pd.DataFrame:
         if X is None:
             X = self._X_test_raw
         if y_true is None:
             y_true = self.y_test
 
         y_pred = self.predict(X)
-        results = pd.DataFrame({"y": y_true, "yhat": y_pred}, index=self._test_idx)
-        results["bin"] = results["y"].apply(
-            lambda x: "<75" if x < 75 else ("75-150" if x < 150 else "150+")
-        )
-        groups = results.groupby("bin")
-        metrics = groups.apply(lambda x: pd.Series(get_evaluation_metrics(x["y"], x["yhat"])))
-        metrics["n_samples"] = groups.size()
+        metrics = compute_evaluation_report(y_true, y_pred)
         return metrics
 
     def grid_search(
