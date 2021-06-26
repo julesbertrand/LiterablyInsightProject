@@ -1,6 +1,7 @@
-from typing import Any, Dict, Union
+from typing import Any, Dict, Literal, Union
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 # from sklearn.preprocessing import FunctionTransformer
@@ -12,25 +13,52 @@ from sklearn.pipeline import Pipeline
 from litreading.config import HUMAN_WCPM_COL, SEED
 from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.evaluation import get_evaluation_metrics
+from litreading.utils.logging import logger
 
 
 class Model:
+
+    _preprocessor = LCSPreprocessor()
+
     def __init__(
         self,
         estimator: Union[str, BaseEstimator] = "default",
         scaler: Union[str, TransformerMixin] = "default",
+        mode: Literal["custom", "baseline"] = "custom",
     ) -> None:
-        self._check_estimator(estimator)
-        self._check_scaler(scaler)
-        self._build_model()
+        self._build_model(scaler, estimator, mode)
 
     @property
-    def model(self) -> Pipeline:
+    def model(self) -> Union[Pipeline, TransformerMixin]:
         return self._model
 
     @property
     def preprocessor(self) -> LCSPreprocessor:
         return self._preprocessor
+
+    @property
+    def mode(self) -> Literal["custom", "baseline"]:
+        return self._mode
+
+    def _build_model(self, scaler, estimator, mode) -> None:
+        if mode == "baseline":
+            msg = "mode = 'baseline' -> Initializing Baseline model. Any scaler or estimator argument will be ignored."
+            msg += "\nThe prediction is the word correct count based on differ list."
+            logger.warning(msg)
+            self._model = None
+        elif mode == "custom":
+            self._check_estimator(estimator)
+            self._check_scaler(scaler)
+            self._model = Pipeline(
+                [
+                    ("scaler", self._scaler),
+                    ("estimator", self._estimator),
+                ],
+                verbose=True,
+            )
+        else:
+            raise ValueError("mode must be one of 'custom', 'baseline'")
+        self._mode = mode
 
     def _check_estimator(self, estimator: Union[str, BaseEstimator]) -> None:
         if isinstance(estimator, str):
@@ -52,24 +80,14 @@ class Model:
         else:
             raise TypeError("scaler must be either an str or a sklearn.base.BaseEstimator.")
 
-    def _build_model(self) -> None:
-        self._preprocessor = LCSPreprocessor()
-        self._model = Pipeline(
-            [
-                ("scaler", self._scaler),
-                ("estimator", self._estimator),
-            ],
-            verbose=True,
-        )
-
     def prepare_train_test_set(
         self,
-        df: pd.DataFrame,
+        dataset: pd.DataFrame,
         test_set_size: float = 0.2,
     ) -> None:
         self._X_train_raw, self._X_test_raw, self.y_train, self.y_test = train_test_split(
-            df.drop(columns=[HUMAN_WCPM_COL]),
-            df[HUMAN_WCPM_COL],
+            dataset.drop(columns=[HUMAN_WCPM_COL]),
+            dataset[HUMAN_WCPM_COL],
             test_size=test_set_size,
             random_state=SEED,
         )
@@ -77,14 +95,21 @@ class Model:
 
     def fit(self) -> None:
         self.X_train = self.preprocessor.preprocess_data(self._X_train_raw)
-        mask = pd.DataFrame(self.X_train).isna().any(axis=1) | pd.Series(self.y_train).isna().any()
-        self.X_train, self.y_train = self.X_train[~mask], self.y_train[~mask]
-        self._model.fit(self.X_train, self.y_train)
+        if self._mode == "custom":
+            mask = (
+                pd.DataFrame(self.X_train).isna().any(axis=1)
+                | pd.Series(self.y_train).isna().any()
+            )  # HACK
+            self.X_train, self.y_train = self.X_train[~mask], self.y_train[~mask]
+            self._model.fit(self.X_train, self.y_train)
         return self
 
-    def predict(self, X: np.array) -> None:
+    def predict(self, X: npt.ArrayLike) -> None:
         X_processed = self.preprocessor.preprocess_data(X)
-        y_pred = self._model.predict(X_processed)
+        if self._mode == "baseline":
+            y_pred = X_processed["correct"]
+        else:
+            y_pred = self._model.predict(X_processed)
         return y_pred
 
     def evaluate(self, X: np.array = None, y_true: np.array = None) -> pd.DataFrame:
