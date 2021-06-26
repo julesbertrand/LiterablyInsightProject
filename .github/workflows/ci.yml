@@ -48,7 +48,7 @@ jobs:
       - name: Run iSort
         run: |
           pip install isort
-          isort . --profile black
+          isort .
 
       - name: Run Black
         run: |
