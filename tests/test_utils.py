@@ -2,12 +2,7 @@ import os
 
 import pandas as pd
 
-from litreading.utils.baseline import BaselineModel
 from litreading.utils.files import open_file
-
-
-def test_utils_Baseline():
-    BaselineModel()
 
 
 def test_utils_open_file():
