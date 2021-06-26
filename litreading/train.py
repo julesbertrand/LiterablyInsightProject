@@ -1,388 +1,155 @@
-"""
-ModelTrainer class to train models and / or tune hyperparameters
-"""
+from typing import Any, Dict, Union
 
-import itertools
-from typing import Any, Dict, Tuple, Union
-
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
 import numpy as np
 import pandas as pd
-import seaborn as sns
-from sklearn.ensemble import RandomForestRegressor
+
+# from sklearn.preprocessing import FunctionTransformer
+from sklearn import base, metrics
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.preprocessing import StandardScaler
-from xgboost import XGBRegressor
+from sklearn.pipeline import Pipeline
 
-from litreading.config import (
-    DEFAULT_MODEL_TYPE,
-    DEFAULT_PARAMS,
-    MODELS_PATH,
-    PREPROCESSING_STEPS,
-    SEED,
-)
-from litreading.dataset import Dataset
-from litreading.utils import BaselineModel, logger, save_file
+from litreading.config import HUMAN_WCPM_COL, SEED
+from litreading.preprocessor import LCSPreprocessor
 
 
-class ModelTrainer(Dataset):
-    """
-    Train models with default params on new data
-    Train models with personalized params
-    Tune hyperparameters
-    Methods: set_new_model, __set_estimator, get_model_params, set_model_params, save_model
-            train: model.fit
-            prepare_train_test_set: Dataset.preprocessing, Dataset.compute_features, remove outliers, train test split and scale features
-            evaluate_model: Dataset.statistics and error count by magnitude (1% ,5%, 10%)
-            grid_search: compute sklearn grid search on selected model with selected set of params and k-folds
-            feature_importance: plot the feature importance for current model. Only for RF and XGB.
-    Static methods: plot_grid_search: plot grid search results with seaborn with one param as x and one as hue
-                    plot_distribution: plot distributon of errors
-                    plot_scatter: scatter plot of y and x
-    """
-
+class Model:
     def __init__(
         self,
-        df: pd.DataFrame,
-        model_type: str = DEFAULT_MODEL_TYPE,
-        prompt_col: str = "prompt",
-        asr_col: str = "asr_transcript",
-        human_col: str = "human_transcript",
-        duration_col: str = "scored_duration",
-        human_wcpm_col: str = "human_wcpm",
-    ):
-        self.set_new_model(model_type)
-        Dataset.__init__(
-            self,
-            df=df,
-            prompt_col=prompt_col,
-            asr_col=asr_col,
-            human_col=human_col,
-            duration_col=duration_col,
-            human_wcpm_col=human_wcpm_col,
-            mode="train",
-        )
+        estimator: Union[str, BaseEstimator] = "default",
+        scaler: Union[str, TransformerMixin] = "default",
+    ) -> None:
+        self._check_estimator(estimator)
+        self._check_scaler(scaler)
+        self._build_model()
 
     @property
-    def model_type(self):
-        return self.__model_type
+    def model(self) -> Pipeline:
+        return self._model
 
-    @staticmethod
-    def __set_estimator(model_type: str):
-        if model_type == "RF":
-            estimator = RandomForestRegressor(random_state=SEED)
-        elif model_type == "XGB":
-            estimator = XGBRegressor(random_state=SEED)
-        elif model_type == "KNN":
-            estimator = KNeighborsRegressor()
-        elif model_type == "Baseline":
-            estimator = BaselineModel()
+    @property
+    def preprocessor(self) -> LCSPreprocessor:
+        return self._preprocessor
+
+    def _check_estimator(self, estimator: Union[str, BaseEstimator]) -> None:
+        if isinstance(estimator, str):
+            raise NotImplementedError
+        elif isinstance(estimator, BaseEstimator):
+            if base.is_classifier(estimator):
+                raise TypeError("estimator must be a sklearn-like regressor")
+            self._estimator = estimator
         else:
-            raise KeyError("Sorry, this model type has not been implemented yet")
-        return estimator
+            raise TypeError("estimator must be either an str or a sklearn.base.BaseEstimator.")
 
-    def set_new_model(self, model_type: str, params: Dict[str, Any] = None):
-        """ Set new models with chosen params """
-        estimator = self.__set_estimator(model_type)
-        self.__model_type = model_type
-        self.__model = estimator
-        if params is None:
-            params = {}
-        self.set_model_params(params)
-        logger.info("New model set: %s", model_type)
-
-    def get_model_params(self):
-        return self.__model.get_params()
-
-    def set_model_params(self, params: Union[dict, str]):
-        """ default sklearn params, default config.py params of personalized params """
-        if params == "default":
-            params = DEFAULT_PARAMS[self.__model_type]
-            self.__model.set_params(**params)
-        elif isinstance(params, dict):
-            if params != {}:
-                self.__model.set_params(**params)
+    def _check_scaler(self, scaler: Union[str, TransformerMixin]) -> None:
+        if isinstance(scaler, str):
+            raise NotImplementedError
+        elif isinstance(scaler, TransformerMixin):
+            if not hasattr(scaler, "fit_transform"):
+                raise TypeError("scaler must be a sklearn-like classifier")
+            self._scaler = scaler
         else:
-            raise TypeError("Expected: 'default' or dictionnary of params names: params value")
+            raise TypeError("scaler must be either an str or a sklearn.base.BaseEstimator.")
 
-    def save_model(self, scaler: bool = False, model: bool = False, replace: bool = False):
-        """ Save both scaler and trained / untrained model with params in joblib in config.MODELS_PATH"""
-        if scaler:
-            try:
-                save_file(
-                    self.scaler,
-                    path=MODELS_PATH,
-                    file_name="standard_scaler.joblib",
-                    replace=replace,
-                )
-            except AttributeError:
-                logger.error(
-                    "scaler not defined: Please fit a scaler before saving \
-it by calling ModelTrainer.prepare_train_test_set()"
-                )
-        if model:
-            save_file(
-                self.__model,
-                path=MODELS_PATH,
-                file_name=self.__model_type + ".joblib",
-                replace=replace,
-            )
-
-    def train(self):
-        """ If test and train set were prepared before, will train current model with current params """
-        try:
-            self.X_train
-        except AttributeError:
-            logger.error(
-                "X_train, Y_train not defined: Please prepare train and test \
-set before training by calling ModelTrainer.prepare_train_test_set()"
-            )
-            return
-        # reset model to blank
-        params = self.__model.get_params()
-        self.__model = self.__set_estimator(self.__model_type)
-        self.set_model_params(params)
-        # train
-        logger.info("Training %s", self.__model_type)
-        self.__model = self.__model.fit(self.X_train, self.Y_train)
+    def _build_model(self) -> None:
+        self._preprocessor = LCSPreprocessor()
+        self._model = Pipeline(
+            [
+                ("scaler", self._scaler),
+                ("estimator", self._estimator),
+            ],
+            verbose=True,
+        )
 
     def prepare_train_test_set(
         self,
-        remove_outliers: bool = False,
-        outliers_tol: float = 0.1,
+        df: pd.DataFrame,
         test_set_size: float = 0.2,
-        inplace: bool = True,
-    ):
-        """
-        if not Inplace, return X_train, X_test, Y_train, Y_test
-        Preprocess data using Dataset.preprocess_data()
-        Compute features using Dataset.compute_features()
-        Remove outliers if remove_outliers = True (default: False) with tol=outliers_tol (default: .1)
-        Split train and test set using sklearn.model_selection.train_test_split()
-        Scale (fit transform) using sklearn.preprocessing.StandardScaler()
-        """
-        # Preprocessing data
-        self.preprocess_data(**PREPROCESSING_STEPS, inplace=True)
-        # create dataframe of features with Dataset.compute_features()
-        self.compute_features(inplace=True)
-        # removing outliers based on diff between human and asr transcript length
-        if remove_outliers:
-            mask = self.determine_outliers_mask(tol=outliers_tol)
-            self.features = self.features[mask]
-            self.datapoints = mask.sum()
-            logger.info(
-                "Removed %i outliers, %i datapoints remaining for training/testing",
-                len(mask) - self.datapoints,
-                self.datapoints,
-            )
-        else:
-            self.datapoints = len(self.features.index)
-        # train test split
-        X_train_raw, X_test_raw, Y_train, Y_test = train_test_split(
-            self.features.drop(columns=["human_wcpm"]),
-            self.features["human_wcpm"],
+    ) -> None:
+        self._X_train_raw, self._X_test_raw, self.y_train, self.y_test = train_test_split(
+            df.drop(columns=[HUMAN_WCPM_COL]),
+            df[HUMAN_WCPM_COL],
             test_size=test_set_size,
             random_state=SEED,
         )
-        self.test_idx = X_test_raw.index
-        logger.debug("Fit scaler to training set and transform training and test set")
+        self._test_idx = self._X_test_raw.index
 
-        self.scaler = StandardScaler()
-        X_train = self.scaler.fit_transform(X_train_raw)
-        X_test = self.scaler.transform(X_test_raw)
-        if not inplace:
-            return X_train, X_test, Y_train, Y_test
-        self.X_train, self.X_test = X_train, X_test
-        self.Y_train, self.Y_test = Y_train, Y_test
+    def fit(self) -> None:
+        self.X_train = self.preprocessor.preprocess_data(self._X_train_raw)
+        mask = pd.DataFrame(self.X_train).isna().any(axis=1) | pd.Series(self.y_train).isna().any()
+        self.X_train, self.y_train = self.X_train[~mask], self.y_train[~mask]
+        self._model.fit(self.X_train, self.y_train)
+        return self
 
-    def evaluate_model(
-        self, visualize: bool = True
-    ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        """
-        Return 3 DataFrames: statistics for each row, summary of statistics per bin, summary fo error counts per bin
-        bins are <75 wcpm, 75-150 wcpm and 150+ wcpm
-        """
-        Y_pred = self.__model.predict(self.X_test)
-        stats = self.compute_stats(Y_pred, self.test_idx)
-        # creating 3 groups of datapoints based on human_wcpm
-        stats["wcpm_bin"] = stats["human_wcpm"].apply(
+    def predict(self, X: np.array) -> None:
+        X_processed = self.preprocessor.preprocess_data(X)
+        y_pred = self._model.predict(X_processed)
+        return y_pred
+
+    def evaluate(self, X: np.array = None, y_true: np.array = None) -> pd.DataFrame:
+        if X is None:
+            X = self._X_test_raw
+        if y_true is None:
+            y_true = self.y_test
+
+        y_pred = self.predict(X)
+        results = pd.DataFrame({"y": y_true, "yhat": y_pred}, index=self._test_idx)
+        results["bin"] = results["y"].apply(
             lambda x: "<75" if x < 75 else ("75-150" if x < 150 else "150+")
         )
-        # computing mean and std of stats for each bin
-        stats_summary = stats.groupby("wcpm_bin").agg(["mean", "std"])
-        stats_summary.loc["total"] = stats.agg(["mean", "std"]).unstack()
-        # stats_summary = pd.concat([stats_summary, total], axis=0)
-        stats_summary.drop(
-            columns=["human_wcpm", "wcpm_estimation", "wcpm_estimation_error_%"],
-            inplace=True,
-        )
-        cols = [
-            ("wcpm_estimation_abs_error_%", "mean"),
-            ("wcpm_estimation_abs_error_%", "std"),
-        ]
-        stats_summary[cols] = stats_summary[cols] * 100
-        stats_summary = stats_summary.applymap(lambda x: round(x, 2))
-        # computing # of error > 1%, 5%, 10% per bin
-        d = {
-            "Total Count": -1,
-            "Error > 1%": 0.01,
-            "Error > 5%": 0.05,
-            "Error > 10%": 0.1,
-        }
-        for k, v in d.items():
-            stats[k] = stats["wcpm_estimation_abs_error_%"] > v
-        agg_funcs = ["sum", lambda x: round(100 * sum(x) / len(x), 1)]
-        errors_summary = stats[list(d.keys()) + ["wcpm_bin"]].groupby("wcpm_bin")
-        errors_summary = errors_summary.agg(agg_funcs)
-        errors_summary.columns.set_levels(["count", "% of bin"], level=1, inplace=True)
-        temp = stats[list(d.keys())].agg(agg_funcs).unstack()  # for total count and % of test set
-        temp.index.set_levels(["count", "% of bin"], level=1, inplace=True)
-        errors_summary.loc["total"] = temp
-        if visualize:
-            self.plot_wcpm_distribution(
-                stats=stats, x="wcpm_estimation_error_%", stat="count", binwidth=0.01
-            )
-        return stats, stats_summary, errors_summary
+        groups = results.groupby("bin")
+        metrics = groups.apply(lambda x: pd.Series(get_evaluation_metrics(x["y"], x["yhat"])))
+        metrics["n_samples"] = groups.size()
+        return metrics
 
     def grid_search(
         self,
-        model_type: str,
-        cv_params: Dict[str, Any],
-        cv_folds: int = 5,
+        params_grid: Dict[str, Any],
+        cv: int = 5,
         verbose: int = 2,
         scoring_metric: str = "r2",
     ):
-        """
-        Perform sklearn.model_selection.GridSearch() on model model_type with params cv_params
-        For other information see sklearn documentation
-        """
-        params = dict()  # for params in cv_params with unique value, set directly to estimator
-        params_grid = dict()  # for params to be actually cross-validated
-        for key, value in cv_params.items():
-            if len(value) == 1:
-                params[key] = value[0]
-            else:
-                params_grid[key] = value
-        estimator = self.set_new_model(model_type=model_type, inplace=False)
-        estimator.set_params(**params)
-        print("\n" + " Estimator: ".center(120, "-"))
-        print(estimator.__class__.__name__)
-        print("\n" + " Metric for evaluation: ".center(120, "-"))
-        print(scoring_metric)
-        if len(params.keys()) > 0:
-            print("\n" + " Fixed params: ".center(120, "-"))
-            [print(key, value) for key, value in params.items()]
-        print("\n" + " Params to be tested: ".center(120, "-"))
-        [print(key, value) for key, value in params_grid.items()]
-        params_list = list(itertools.product(*params_grid.values()))
-        n_combi = len(params_list)
-        print("\n" + " # of possible combinations to be cross-validated: {:d}".format(n_combi))
-        answer = input("\n" + "Continue with these c-v parameters ? (y/n)  ")
-        if answer == "n" or answer == "no":
-            print("Please redefine inputs.")
-            return
-
         grid_search = GridSearchCV(
-            estimator=estimator,
+            estimator=self._model,
             param_grid=params_grid,
             scoring=scoring_metric,
-            cv=cv_folds,
+            cv=cv,
             n_jobs=-1,
             verbose=verbose,
         )
-        try:
-            grid_search.fit(self.X_train, self.Y_train)
-        except AttributeError:
-            logger.error(
-                "X_train, Y_train not defined: Please prepare train and test \
-set before training by calling ModelTrainer.prepare_train_test_set()"
-            )
-        self.__model = grid_search.best_estimator_
         return grid_search
 
-    @staticmethod
-    def plot_grid_search(
-        cv_results: pd.DataFrame,
-        x: str,
-        hue: str = None,
-        y: str = "mean_test_score",
-        log_scale: bool = True,
-    ):
-        """
-        Will plot the mean_test_score (or other metric if you choose)
-        For parameters x and hue using seaborn
-        log_scale = True to plot with a log_scale on x axis
-        """
-        # Get Test Scores Mean and std for each grid search
-        cv_results = pd.DataFrame(cv_results)
-        if hue is not None:
-            hue = "param_" + hue
-        x = "param_" + x
-        # Plot Grid search scores
-        plt.style.use("seaborn-darkgrid")
-        _, ax = plt.subplots(1, 1, figsize=(10, 4))
+    def plot_grid_search(self):
+        raise NotImplementedError
 
-        # Param1 is the X-axis, Param 2 is represented as a different curve (color line)
-        sns.lineplot(data=cv_results, x=x, y=y, hue=hue, palette="Set2")
+    def save_model(self):
+        raise NotImplementedError
 
-        ax.set_title("Grid Search Scores", fontsize=20, fontweight="bold")
-        ax.set_xlabel(x, fontsize=16)
-        ax.set_ylabel("CV Average Score", fontsize=16)
-        ax.legend(loc="best", fontsize=15)
-        if log_scale:
-            ax.set_xscale("log")
-        ax.grid("on")
-        plt.show()
 
-    def feature_importance(self, threshold: float = 0.001):
-        """
-        Compute and plot feature importance for tree based methods from sklearn or similar
-        input: model already fitted
-            features: names of the features
-            threshold: minimum feature importance for the feature to be plotted
-        """
-        importance = self.__model.feature_importances_
-        idx = [x[0] for x in enumerate(importance) if x[1] > threshold]
-        labels = self.features.columns[idx]
-        importance = importance[idx]
-        idx = np.argsort(importance)[::-1]
+def get_evaluation_metrics(y_true: np.array, y_pred: np.array) -> Dict[str, Any]:
+    eval_metrics = {
+        "ME": np.mean(y_true - y_pred),
+        "MAE": metrics.mean_absolute_error(y_true, y_pred),
+        "MAPE": metrics.mean_absolute_percentage_error(y_true, y_pred),
+        "RMSE": np.sqrt(metrics.mean_squared_error(y_true, y_pred)),
+        "R2": metrics.r2_score(y_true, y_pred),
+    }
+    return eval_metrics
 
-        plt.style.use("seaborn-darkgrid")
-        _, ax = plt.subplots(1, 1, figsize=(8, max(8, 0.2 * len(idx))))
-        sns.barplot(x=importance[idx], y=labels[idx], color=sns.color_palette()[0])
-        for i, val in enumerate(importance[idx]):
-            ax.text(val + 0.01, i, s="{:.3f}".format(val), ha="left", va="center")
-        ax.set_title("Feature importance for current model", fontsize=16)
-        ax.set_xlim(0, max(importance[idx]) + 0.03)
-        plt.show()
 
-    @staticmethod
-    def plot_wcpm_distribution(stats, x: str, stat: str = "count", binwidth: float = 0.01):
-        """ Plot distribution of stats[stat] from x in bins of bin_width """
-        plt.style.use("seaborn-darkgrid")
-        fig, ax = plt.subplots(1, 1, figsize=(16, 6))
-        sns.histplot(ax=ax, data=stats, x=x, stat=stat, binwidth=binwidth)
-        ax.set_title("Distribution of errors", fontsize=20, fontweight="bold")
-        ax.set_xlabel(x, fontsize=16)
-        if "%" in x:
-            ax.xaxis.set_major_formatter(mtick.PercentFormatter(1.0))
-        ax.set_ylabel("count", fontsize=16)
-        plt.show()
+def smape_loss(y_test, y_pred):
+    """Symmetric mean absolute percentage error
+    Addapted from https://github.com/alan-turing-institute/sktime/blob/15c5ccba8999ddfc52fe37fe4d6a7ff39a19ece3/sktime/performance_metrics/forecasting/_functions.py#L79
 
-    @staticmethod
-    def plot_wcpm_scatter(stats, x: str = "human_wcpm", y: str = "wcpm_estimation_error_%"):
-        """
-        Scatter plot of x and y in stats to be choosen by user
-        Default x='human_wcpm' and y='wcpm_estimation_error_%'
-        """
-        plt.style.use("seaborn-darkgrid")
-        _, ax = plt.subplots(1, 1, figsize=(16, 6))
-        sns.scatterplot(data=stats, x=x, y=y)
-        ax.set_title("Graph of %s" % y, fontsize=20, fontweight="bold")
-        ax.set_xlabel(x, fontsize=16)
-        ax.set_ylabel(y, fontsize=16)
-        if "%" in y:
-            ax.yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
-        plt.show()
+    Args:
+        y_test ([type]): pandas Series of shape = (fh,) where fh is the forecasting horizon
+            Ground truth (correct) target values.
+        y_pred ([type]): pandas Series of shape = (fh,)
+        Estimated target values.
+
+    Returns:
+        float: sMAPE loss
+    """
+    nominator = np.abs(y_test - y_pred)
+    denominator = np.abs(y_test) + np.abs(y_pred)
+    return np.mean(2.0 * nominator / denominator)
