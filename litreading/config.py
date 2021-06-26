@@ -6,6 +6,14 @@ from pathlib import Path
 # a path to a folder in which models are saved
 MODELS_PATH = Path("./litreading/models/")
 
+""" Column names in dataset """
+PROMPT_TEXT_COL = "prompt"
+ASR_TRANSCRIPT_COL = "asr_transcript"
+HUMAN_TRANSCRIPT_COL = "human_transcript"
+HUMAN_WCPM_COL = "human_wcpm"
+DURATION_COL = "scored_duration"
+
+
 """ Preprocessing steps - Please update considering your preprocessing"""
 # preprocessing steps
 PREPROCESSING_STEPS = {

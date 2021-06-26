@@ -6,12 +6,10 @@ import pandas as pd
 # from sklearn.preprocessing import FunctionTransformer
 from sklearn import base, metrics
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
 
-from litreading.config import SEED
+from litreading.config import HUMAN_WCPM_COL, SEED
 from litreading.preprocessor import LCSPreprocessor
 
 
@@ -33,7 +31,7 @@ class Model:
     def preprocessor(self) -> LCSPreprocessor:
         return self._preprocessor
 
-    def _check_estimator(self, estimator: Union[str, BaseEstimator]):
+    def _check_estimator(self, estimator: Union[str, BaseEstimator]) -> None:
         if isinstance(estimator, str):
             raise NotImplementedError
         elif isinstance(estimator, BaseEstimator):
@@ -43,7 +41,7 @@ class Model:
         else:
             raise TypeError("estimator must be either an str or a sklearn.base.BaseEstimator.")
 
-    def _check_scaler(self, scaler: Union[str, TransformerMixin]):
+    def _check_scaler(self, scaler: Union[str, TransformerMixin]) -> None:
         if isinstance(scaler, str):
             raise NotImplementedError
         elif isinstance(scaler, TransformerMixin):
@@ -57,8 +55,8 @@ class Model:
         self._preprocessor = LCSPreprocessor()
         self._model = Pipeline(
             [
-                (f"scaler: {self._scaler.__class__.__name__}", self._scaler),
-                (f"estimator: {self._estimator.__class__.__name__}", self._estimator),
+                ("scaler", self._scaler),
+                ("estimator", self._estimator),
             ],
             verbose=True,
         )
@@ -69,8 +67,8 @@ class Model:
         test_set_size: float = 0.2,
     ) -> None:
         self._X_train_raw, self._X_test_raw, self.y_train, self.y_test = train_test_split(
-            df.drop(columns=["human_wcpm"]),
-            df["human_wcpm"],
+            df.drop(columns=[HUMAN_WCPM_COL]),
+            df[HUMAN_WCPM_COL],
             test_size=test_set_size,
             random_state=SEED,
         )
@@ -95,11 +93,31 @@ class Model:
             y_true = self.y_test
 
         y_pred = self.predict(X)
-        metrics = pd.Series(get_evaluation_metrics(y_true, y_pred))
+        results = pd.DataFrame({"y": y_true, "yhat": y_pred}, index=self._test_idx)
+        results["bin"] = results["y"].apply(
+            lambda x: "<75" if x < 75 else ("75-150" if x < 150 else "150+")
+        )
+        groups = results.groupby("bin")
+        metrics = groups.apply(lambda x: pd.Series(get_evaluation_metrics(x["y"], x["yhat"])))
+        metrics["n_samples"] = groups.size()
         return metrics
 
-    def grid_search(self):
-        raise NotImplementedError
+    def grid_search(
+        self,
+        params_grid: Dict[str, Any],
+        cv: int = 5,
+        verbose: int = 2,
+        scoring_metric: str = "r2",
+    ):
+        grid_search = GridSearchCV(
+            estimator=self._model,
+            param_grid=params_grid,
+            scoring=scoring_metric,
+            cv=cv,
+            n_jobs=-1,
+            verbose=verbose,
+        )
+        return grid_search
 
     def plot_grid_search(self):
         raise NotImplementedError
@@ -135,13 +153,3 @@ def smape_loss(y_test, y_pred):
     nominator = np.abs(y_test - y_pred)
     denominator = np.abs(y_test) + np.abs(y_pred)
     return np.mean(2.0 * nominator / denominator)
-
-
-if __name__ == "__main__":
-    df = pd.read_csv("./data/test_data.csv")
-    print(df.head())
-    m = Model(estimator=LinearRegression(), scaler=StandardScaler())
-    m.prepare_train_test_set(df)
-    m = m.fit()
-    perfs = m.evaluate()
-    print(perfs)

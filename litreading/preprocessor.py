@@ -7,6 +7,12 @@ import num2words
 import numpy as np
 import pandas as pd
 
+from litreading.config import (
+    ASR_TRANSCRIPT_COL,
+    DURATION_COL,
+    HUMAN_TRANSCRIPT_COL,
+    PROMPT_TEXT_COL,
+)
 from litreading.utils import logger
 
 
@@ -54,19 +60,19 @@ class LCSPreprocessor:
     def preprocess_data(
         self,
         df: pd.DataFrame,
-        prompt_col: str = "prompt",
-        asr_transcript_col: str = "asr_transcript",
-        human_transcript_col: str = "human_transcript",
-        duration_col: str = "scored_duration",
+        prompt_col: str = PROMPT_TEXT_COL,
+        asr_transcript_col: str = ASR_TRANSCRIPT_COL,
+        human_transcript_col: str = HUMAN_TRANSCRIPT_COL,
+        duration_col: str = DURATION_COL,
     ) -> pd.DataFrame:
         """Preprocess data and compute numerical features from text
 
         Args:
             df (pd.DataFrame): data to preprocesss. Must include all cols listed below.
-            prompt_col (str): Defaults to "prompt".
-            asr_transcript_col (str): Defaults to "asr_transcript".
-            human_transcript_col (str): Defaults to "human_transcript".
-            duration_col (str): Defaults to "scored_duration".
+            prompt_col (str): Defaults to PROMPT_TEXT_COL.
+            asr_transcript_col (str): Defaults to ASR_TRANSCRIPT_COL.
+            human_transcript_col (str): Defaults to HUMAN_TRANSCRIPT_COL.
+            duration_col (str): Defaults to DURATION_COL.
 
         Returns:
             pd.DataFrame: features computed from processed df
@@ -218,7 +224,7 @@ class LCSPreprocessor:
             Dict[str, List[str]]: list of replaced words detected (errors_dict)
         """
         correct = 0
-        errors_dict = {"prompt": [], "transcript": []}
+        errors_dict = {PROMPT_TEXT_COL: [], "transcript": []}
         skip_next = 0
         n = len(differ_list)
         added = 0
@@ -242,17 +248,17 @@ class LCSPreprocessor:
                 minus_plus = word[0] == "-" and differ_list[i + j][0] == "+"
                 skip_next = (plus_minus or minus_plus) * j
                 if plus_minus:
-                    errors_dict["prompt"] += [word.replace("+ ", "")]
+                    errors_dict[PROMPT_TEXT_COL] += [word.replace("+ ", "")]
                     errors_dict["transcript"] += [differ_list[i + j].replace("- ", "")]
                 elif minus_plus:
-                    errors_dict["prompt"] += [word.replace("- ", "")]
+                    errors_dict[PROMPT_TEXT_COL] += [word.replace("- ", "")]
                     errors_dict["transcript"] += [differ_list[i + j].replace("+ ", "")]
 
         words_count = {
             "correct": correct,
             "added": added,
             "removed": removed,
-            "replaced": len(errors_dict["prompt"]),
+            "replaced": len(errors_dict[PROMPT_TEXT_COL]),
         }
         return words_count  # , errors_dict
 

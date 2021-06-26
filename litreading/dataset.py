@@ -12,6 +12,13 @@ import numpy as np
 import pandas as pd
 from num2words import num2words  # preprocessing
 
+from litreading.config import (
+    ASR_TRANSCRIPT_COL,
+    DURATION_COL,
+    HUMAN_TRANSCRIPT_COL,
+    HUMAN_WCPM_COL,
+    PROMPT_TEXT_COL,
+)
 from litreading.utils import logger, save_file
 
 
@@ -19,7 +26,7 @@ class Dataset:
     """
     To be used as data for training and prediction
     Methods: get_data, get_features, save_data, print_rows
-            preprocess_data: for preprocessing (punctuation, lowercase, num2words
+            preprocess_text: for preprocessing (punctuation, lowercase, num2words
             compute_differ_lists: compute comparison of asr and prompt for each row
             compute_features: calculate features (number of added, replaced, removed words, avg length, etc)
             determine_outliers_mask: in train mode, used to remove rows with huge length diff between human and asr transcripts
@@ -30,11 +37,11 @@ class Dataset:
     def __init__(
         self,
         df: pd.DataFrame,
-        prompt_col: str = "prompt",
-        asr_col: str = "asr_transcript",
-        human_col: str = "human_transcript",
-        duration_col: str = "scored_duration",
-        human_wcpm_col: str = "human_wcpm",
+        prompt_col: str = PROMPT_TEXT_COL,
+        asr_col: str = ASR_TRANSCRIPT_COL,
+        human_col: str = HUMAN_TRANSCRIPT_COL,
+        duration_col: str = DURATION_COL,
+        human_wcpm_col: str = HUMAN_WCPM_COL,
         mode: str = "predict",
     ):
         self.__data_raw = df
@@ -75,7 +82,7 @@ class Dataset:
         else:
             raise ValueError(f"index must be -1 or >= 0. Current: {index}")
 
-    def preprocess_data(
+    def preprocess_text(
         self,
         lowercase: bool = True,
         punctuation_free: bool = True,
@@ -134,97 +141,6 @@ class Dataset:
             return df
         self.data[columns] = df
 
-    @staticmethod
-    def longest_common_subsequence(str_a: str, str_b: str, split_car: str = " "):
-        """
-        Return differ_list: difflib.Differ.compare() output
-        Compare string a and b split by split_care
-        Default split_car: " " (split by word)
-        Remove text surplus at the end.
-        Used in self.compute_differ_lists()
-        """
-        if not isinstance(str_a, str) or not isinstance(str_b, str):
-            raise TypeError("Compared strings must be of string type")
-        differ_list = difflib.Differ().compare(str_a.split(split_car), str_b.split(split_car))
-        differ_list = list(differ_list)
-
-        # if a lot characters at the end were added or removed from prompt
-        # then delete them from differ list
-        to_be_removed = differ_list[-1][0]
-        if to_be_removed != " ":
-            while differ_list[-1][0] == to_be_removed and len(differ_list) >= 1:
-                differ_list.pop()
-        return differ_list
-
-    def compute_differ_lists(self, col_1: str, col_2: str, inplace: bool = False) -> List[str]:
-        """
-        Return pandas series of differ_lists
-        Apply self.longest_common_subsequence() to two self.df columns
-        Create a new column in df for the number of common words.
-        """
-        logger.debug("Comparing %s to %s", col_1, col_2)
-        if not (isinstance(col_1, str) and isinstance(col_2, str)):
-            logger.error("col_1 and col_2 should be strings from data columns headers")
-        temp = self.data.apply(
-            lambda x: self.longest_common_subsequence(x[col_1], x[col_2]), axis=1
-        )
-        if not inplace:
-            return pd.Series(temp, name="differ_list")
-        else:
-            self.data["differ_list"] = temp
-
-    @staticmethod
-    def get_errors_dict(differ_list: List[str]) -> Tuple[int, int, int, int, Dict[str, Any]]:
-        """
-        Return number of correct, added, removed, replaced words and dict of errors
-        Compute the list of replaced words detected (errors_dict)
-        Used in self.compute_features()
-        """
-        counter = 0
-        errors_dict = {"prompt": [], "transcript": []}
-        skip_next = 0
-        n = len(differ_list)
-        add = 0
-        sub = 0
-        for i, word in enumerate(differ_list):
-            if skip_next > 0:
-                skip_next -= 1
-                pass  # when the word has already been added to the error dict
-            if word[0] == " ":
-                counter += 1  # + 1 if word correct
-            elif i < n - 2:  # keep track of mistakes
-                if word[0] == "+":
-                    add += 1
-                elif word[0] == "-":
-                    sub += 1
-                j = 1
-                while i + j < n and differ_list[i + j][0] == "?":  # account for ? in skip_next
-                    j += 1
-                # two cases for replaced words: + - or - +
-                plus_minus = word[0] == "+" and differ_list[i + j][0] == "-"
-                minus_plus = word[0] == "-" and differ_list[i + j][0] == "+"
-                skip_next = (plus_minus or minus_plus) * j
-                if plus_minus:
-                    errors_dict["prompt"] += [word.replace("+ ", "")]
-                    errors_dict["transcript"] += [differ_list[i + j].replace("- ", "")]
-                elif minus_plus:
-                    errors_dict["prompt"] += [word.replace("- ", "")]
-                    errors_dict["transcript"] += [differ_list[i + j].replace("+ ", "")]
-        replaced = len(errors_dict["prompt"])
-        return counter, add, sub, replaced, errors_dict
-
-    @staticmethod
-    def stats_length_of_words(s: str, sep: str = " ") -> Tuple[int, int]:
-        """ Return the avg length of words in a string s, with separator sep. """
-        s = s.split(sep)
-        n = len(s)
-        if n == 0:
-            return 0
-        s = [len(word) for word in s]
-        mean = round(np.mean(s), 3)
-        std = round(np.std(s), 3)
-        return mean, std
-
     def compute_features(self, inplace: bool = False) -> Union[None, pd.DataFrame]:
         """
         if not inplace, return features DataFrame
@@ -269,11 +185,102 @@ class Dataset:
         features = pd.concat([features, temp_prompt, temp_asr], axis=1)
 
         if self.mode == "train":
-            features["human_wcpm"] = self.data[self.human_wcpm_col]
+            features[HUMAN_WCPM_COL] = self.data[self.human_wcpm_col]
 
         if not inplace:
             return features
         self._features = features
+
+    def compute_differ_lists(self, col_1: str, col_2: str, inplace: bool = False) -> List[str]:
+        """
+        Return pandas series of differ_lists
+        Apply self.longest_common_subsequence() to two self.df columns
+        Create a new column in df for the number of common words.
+        """
+        logger.debug("Comparing %s to %s", col_1, col_2)
+        if not (isinstance(col_1, str) and isinstance(col_2, str)):
+            logger.error("col_1 and col_2 should be strings from data columns headers")
+        temp = self.data.apply(
+            lambda x: self.longest_common_subsequence(x[col_1], x[col_2]), axis=1
+        )
+        if not inplace:
+            return pd.Series(temp, name="differ_list")
+        else:
+            self.data["differ_list"] = temp
+
+    @staticmethod
+    def longest_common_subsequence(str_a: str, str_b: str, split_car: str = " "):
+        """
+        Return differ_list: difflib.Differ.compare() output
+        Compare string a and b split by split_care
+        Default split_car: " " (split by word)
+        Remove text surplus at the end.
+        Used in self.compute_differ_lists()
+        """
+        if not isinstance(str_a, str) or not isinstance(str_b, str):
+            raise TypeError("Compared strings must be of string type")
+        differ_list = difflib.Differ().compare(str_a.split(split_car), str_b.split(split_car))
+        differ_list = list(differ_list)
+
+        # if a lot characters at the end were added or removed from prompt
+        # then delete them from differ list
+        to_be_removed = differ_list[-1][0]
+        if to_be_removed != " ":
+            while differ_list[-1][0] == to_be_removed and len(differ_list) >= 1:
+                differ_list.pop()
+        return differ_list
+
+    @staticmethod
+    def get_errors_dict(differ_list: List[str]) -> Tuple[int, int, int, int, Dict[str, Any]]:
+        """
+        Return number of correct, added, removed, replaced words and dict of errors
+        Compute the list of replaced words detected (errors_dict)
+        Used in self.compute_features()
+        """
+        counter = 0
+        errors_dict = {PROMPT_TEXT_COL: [], "transcript": []}
+        skip_next = 0
+        n = len(differ_list)
+        add = 0
+        sub = 0
+        for i, word in enumerate(differ_list):
+            if skip_next > 0:
+                skip_next -= 1
+                pass  # when the word has already been added to the error dict
+            if word[0] == " ":
+                counter += 1  # + 1 if word correct
+            elif i < n - 2:  # keep track of mistakes
+                if word[0] == "+":
+                    add += 1
+                elif word[0] == "-":
+                    sub += 1
+                j = 1
+                while i + j < n and differ_list[i + j][0] == "?":  # account for ? in skip_next
+                    j += 1
+                # two cases for replaced words: + - or - +
+                plus_minus = word[0] == "+" and differ_list[i + j][0] == "-"
+                minus_plus = word[0] == "-" and differ_list[i + j][0] == "+"
+                skip_next = (plus_minus or minus_plus) * j
+                if plus_minus:
+                    errors_dict[PROMPT_TEXT_COL] += [word.replace("+ ", "")]
+                    errors_dict["transcript"] += [differ_list[i + j].replace("- ", "")]
+                elif minus_plus:
+                    errors_dict[PROMPT_TEXT_COL] += [word.replace("- ", "")]
+                    errors_dict["transcript"] += [differ_list[i + j].replace("+ ", "")]
+        replaced = len(errors_dict[PROMPT_TEXT_COL])
+        return counter, add, sub, replaced, errors_dict
+
+    @staticmethod
+    def stats_length_of_words(s: str, sep: str = " ") -> Tuple[int, int]:
+        """ Return the avg length of words in a string s, with separator sep. """
+        s = s.split(sep)
+        n = len(s)
+        if n == 0:
+            return 0
+        s = [len(word) for word in s]
+        mean = round(np.mean(s), 3)
+        std = round(np.std(s), 3)
+        return mean, std
 
     def determine_outliers_mask(self, tol: float = 0.2):
         """
@@ -301,28 +308,3 @@ len(human_transcript) above which the row is considered an outlier
             return True
 
         return self.data.apply(lambda x: determine_outlier(x, tol), axis=1)
-
-    def compute_stats(self, Y_pred: np.array, test_idx: np.array) -> pd.DataFrame:
-        """
-        Return a DataFrame of statistics about the wcpm estimation for train mode.
-        Input: Y_pred: prediction on test set of words correct
-                test_idx: index of test set in all data
-        """
-        if self.mode != "train":
-            logger.error(
-                "You need to be in 'train' mode to compute statistics about the wcpm estimation.\
-                 'predict was passed"
-            )
-            return
-        stats = pd.DataFrame(Y_pred, columns=["wcpm_estimation"], index=test_idx)
-        stats["human_wcpm"] = self.data[self.human_wcpm_col].loc[test_idx]
-        stats["wcpm_estimation_error"] = stats["human_wcpm"] - stats["wcpm_estimation"]
-        stats["wcpm_estimation_abs_error"] = stats["wcpm_estimation_error"].abs()
-        stats["wcpm_estimation_error_%"] = np.where(
-            stats["human_wcpm"] != 0,
-            stats["wcpm_estimation_error"] / stats["human_wcpm"],
-            0,
-        )
-        stats["wcpm_estimation_abs_error_%"] = stats["wcpm_estimation_error_%"].abs()
-        stats["RMSE"] = stats["wcpm_estimation_error"] ** 2
-        return stats

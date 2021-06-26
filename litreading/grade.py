@@ -5,11 +5,14 @@ DataGrader class to predict WCPM
 import pandas as pd
 
 from litreading.config import (
+    ASR_TRANSCRIPT_COL,
     AVAILABLE_MODEL_TYPES,
     DEFAULT_MODEL_FILES,
     DEFAULT_MODEL_TYPE,
+    DURATION_COL,
     MODELS_PATH,
     PREPROCESSING_STEPS,
+    PROMPT_TEXT_COL,
 )
 from litreading.dataset import Dataset
 from litreading.utils import BaselineModel, logger, open_file
@@ -34,9 +37,9 @@ class DataGrader(Dataset):
     def __init__(
         self,
         df,
-        prompt_col="prompt",
-        asr_col="asr_transcript",
-        duration_col="scored_duration",
+        prompt_col=PROMPT_TEXT_COL,
+        asr_col=ASR_TRANSCRIPT_COL,
+        duration_col=DURATION_COL,
         model_type=DEFAULT_MODEL_TYPE,
     ):
         Dataset.__init__(
