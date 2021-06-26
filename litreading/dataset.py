@@ -19,7 +19,8 @@ from litreading.config import (
     HUMAN_WCPM_COL,
     PROMPT_TEXT_COL,
 )
-from litreading.utils import logger, save_file
+from litreading.utils.files import save_file
+from litreading.utils.logging import logger
 
 
 class Dataset:

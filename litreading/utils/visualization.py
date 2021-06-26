@@ -1,3 +1,5 @@
+from typing import List
+
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import numpy as np
@@ -20,16 +22,16 @@ def plot_wcpm_distribution(stats, x: str, stat: str = "count", binwidth: float =
     ax.set_xlabel(x, fontsize=16)
     if "%" in x:
         ax.xaxis.set_major_formatter(mtick.PercentFormatter(1.0))
-    ax.set_ylabel("count", fontsize=16)
+    ax.set_ylabel(stat, fontsize=16)
     plt.show()
 
 
-def plot_wcpm_scatter(stats, x: str = "human_wcpm", y: str = "wcpm_estimation_error_%"):
+def plot_wcpm_scatter(stats, x: str, y: str):
     """Scatter plot of x and y in stats to be choosen by user
 
     Args:
         stats ([type]): [description]
-        x (str, optional): [description]. Defaults to "human_wcpm".
+        x (str, optional): [description]. Defaults to HUMAN_WCPM_COL.
         y (str, optional): [description]. Defaults to "wcpm_estimation_error_%".
     """
     plt.style.use("seaborn-darkgrid")
@@ -43,16 +45,19 @@ def plot_wcpm_scatter(stats, x: str = "human_wcpm", y: str = "wcpm_estimation_er
     plt.show()
 
 
-def feature_importance(self, threshold: float = 0.001):
+def feature_importance(model, feature_names: List[str], threshold: float = 0.001):
     """Compute and plot feature importance for tree based methods from sklearn or similar
 
     Args:
         threshold (float, optional): minimum feature importance for the feature to be plotted. Defaults to 0.001.
     """
-    importance = self.__model.feature_importances_
-    idx = [x[0] for x in enumerate(importance) if x[1] > threshold]
-    labels = self.features.columns[idx]
-    importance = importance[idx]
+    # df = pd.Dataframe({feature_names})
+    importances = dict(zip(feature_names, model.feature_importances_))
+    std = np.std([tree.feature_importances_ for tree in model.estimators_], axis=0)
+    std = dict(zip(feature_names, std))
+    idx = [x[0] for x in enumerate(importances) if x[1] > threshold]
+    labels = model.features.columns[idx]
+    importance = importances[idx]
     idx = np.argsort(importance)[::-1]
 
     plt.style.use("seaborn-darkgrid")

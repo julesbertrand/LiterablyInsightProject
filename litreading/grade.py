@@ -15,7 +15,9 @@ from litreading.config import (
     PROMPT_TEXT_COL,
 )
 from litreading.dataset import Dataset
-from litreading.utils import BaselineModel, logger, open_file
+from litreading.utils.baseline import BaselineModel
+from litreading.utils.files import open_file
+from litreading.utils.logging import logger
 
 
 # main function

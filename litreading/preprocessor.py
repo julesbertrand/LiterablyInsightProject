@@ -1,9 +1,6 @@
-import ast
 import difflib
-import re
 from typing import Any, Dict, List, Tuple
 
-import num2words
 import numpy as np
 import pandas as pd
 
@@ -13,7 +10,12 @@ from litreading.config import (
     HUMAN_TRANSCRIPT_COL,
     PROMPT_TEXT_COL,
 )
-from litreading.utils import logger
+from litreading.utils.logging import logger
+from litreading.utils.text import (
+    numbers_to_literals,
+    recompose_asr_string_from_dict,
+    remove_punctuation_from_string,
+)
 
 
 class LCSPreprocessor:
@@ -281,19 +283,3 @@ class LCSPreprocessor:
         mean = np.mean(s)
         std = np.std(s)
         return mean, std
-
-
-def numbers_to_literals(s: str) -> str:
-    if len(s) == 4:
-        return re.sub("\d+", lambda y: num2words.num2words(y.group(), to="year"), s)  # noqa
-    return re.sub("\d+", lambda y: num2words.num2words(y.group()), s)  # noqa
-
-
-def recompose_asr_string_from_dict(s: str) -> str:
-    s = ast.literal_eval(s)
-    s = " ".join([e["text"] for e in s])
-    return s
-
-
-def remove_punctuation_from_string(s: str) -> str:
-    return re.sub(r"[^\w\s]", "", s)
