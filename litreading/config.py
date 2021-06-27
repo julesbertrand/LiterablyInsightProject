@@ -23,6 +23,8 @@ PREPROCESSING_STEPS = {
     "asr_string_recomposition": False,
 }
 
+BASELINE_MODEL_PREDICTION_COL = "correct_words_pm"
+
 """ Models available and config - Please update carefully or it could break the code """
 # Available models for training and prediction
 AVAILABLE_MODEL_TYPES = ["Baseline", "RF", "XGB", "KNN"]

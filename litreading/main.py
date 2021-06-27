@@ -5,6 +5,7 @@ from loguru import logger
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 
+from litreading.grade import Grader
 from litreading.model import Model
 
 
@@ -17,6 +18,8 @@ def main():
     m = m.fit()
     perfs = m.evaluate()
     print(perfs)
+    g = Grader(baseline_mode=True)
+    print(g.grade(df))
 
 
 if __name__ == "__main__":
