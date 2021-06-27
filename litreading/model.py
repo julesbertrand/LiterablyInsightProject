@@ -1,10 +1,12 @@
-import itertools
+import numpy.typing as npt
 from typing import Any, Dict, List, Literal, Union
 
+import itertools
+
 import matplotlib.pyplot as plt
-import numpy.typing as npt
 import pandas as pd
 from loguru import logger
+
 from sklearn import base
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import GridSearchCV, train_test_split

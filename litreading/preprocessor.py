@@ -1,5 +1,6 @@
-import difflib
 from typing import Any, Dict, List, Tuple
+
+import difflib
 
 import numpy as np
 import pandas as pd

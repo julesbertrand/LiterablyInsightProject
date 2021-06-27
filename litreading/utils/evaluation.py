@@ -1,8 +1,9 @@
+import numpy.typing as npt
 from typing import Any, Dict
 
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
+
 from sklearn import metrics
 
 

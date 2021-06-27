@@ -2,6 +2,7 @@ import sys
 
 import pandas as pd
 from loguru import logger
+
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 

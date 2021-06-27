@@ -1,9 +1,11 @@
-from pathlib import Path
+import numpy.typing as npt
 from typing import Union
 
-import numpy.typing as npt
+from pathlib import Path
+
 import pandas as pd
 from loguru import logger
+
 from sklearn.pipeline import Pipeline
 
 from litreading.config import BASELINE_MODEL_PREDICTION_COL
