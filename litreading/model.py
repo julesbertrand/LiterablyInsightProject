@@ -1,11 +1,10 @@
 import itertools
 from typing import Any, Dict, List, Literal, Union
 
+import matplotlib.pyplot as plt
 import numpy.typing as npt
 import pandas as pd
 from loguru import logger
-
-# from sklearn.preprocessing import FunctionTransformer
 from sklearn import base
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import GridSearchCV, train_test_split
@@ -14,6 +13,7 @@ from sklearn.pipeline import Pipeline
 from litreading.config import BASELINE_MODEL_PREDICTION_COL, HUMAN_WCPM_COL, SEED
 from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.evaluation import compute_evaluation_report
+from litreading.utils.visualization import feature_importance, plot_grid_search
 
 
 class Model:
@@ -205,7 +205,27 @@ class Model:
 
         return grid_search
 
-    def plot_grid_search(self):
+    @staticmethod
+    def plot_grid_search(
+        cv_results: dict, x: str, y: str, hue: str = None, x_log_scale: bool = False
+    ) -> plt.Figure:
+        fig = plot_grid_search(cv_results, x=x, y=y, hue=hue, log_scale=x_log_scale)
+        return fig
+
+    @staticmethod
+    def plot_feature_importance(self, threshold: float = 0.005):
+        fig = feature_importance(
+            self.model["estimator"], self.dataset["X_train"].columns, threshold=threshold
+        )
+        return fig
+
+    def plot_scatter(self):
+        raise NotImplementedError
+
+    def plot_wcpm_distribution(self):
+        raise NotImplementedError
+
+    def plot_train_test_feature_distributions(self):
         raise NotImplementedError
 
     def save_model(self):
