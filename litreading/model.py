@@ -44,6 +44,14 @@ class Model:
     def baseline_mode(self) -> bool:
         return self._baseline_mode
 
+    @property
+    def dataset(self) -> Dict[str, pd.DataFrame]:
+        if not hasattr(self, "_dataset"):
+            raise AttributeError(
+                "training and test set not defined. Please start by using self._prepare_train_test_set"
+            )
+        return self._dataset
+
     def _build_model(
         self,
         scaler: Union[str, BaseEstimator],
@@ -91,23 +99,31 @@ class Model:
         dataset: pd.DataFrame,
         test_set_size: float = 0.2,
     ) -> None:
-        self._X_train_raw, self._X_test_raw, self.y_train, self.y_test = train_test_split(
+        X_train_raw, X_test_raw, y_train, y_test = train_test_split(
             dataset.drop(columns=[HUMAN_WCPM_COL]),
             dataset[HUMAN_WCPM_COL],
             test_size=test_set_size,
             random_state=SEED,
         )
-        self._test_idx = self._X_test_raw.index
+        self._dataset = {
+            "X_train_raw": X_train_raw,
+            "X_test_raw": X_test_raw,
+            "y_train": y_train,
+            "y_test": y_test,
+        }
+        self._test_idx = X_test_raw.index
 
     def fit(self):
-        self.X_train = self.preprocessor.preprocess_data(self._X_train_raw)
+        self._dataset["X_train"] = self.preprocessor.preprocess_data(self.dataset["X_train_raw"])
+        mask = (
+            pd.DataFrame(self.dataset["X_train"]).isna().any(axis=1)
+            | pd.Series(self.dataset["y_train"]).isna().any()
+        )  # HACK
+        self._dataset["X_train"] = self.dataset["X_train"][~mask]
+        self._dataset["y_train"] = self.dataset["y_train"][~mask]
+
         if not self.baseline_mode:
-            mask = (
-                pd.DataFrame(self.X_train).isna().any(axis=1)
-                | pd.Series(self.y_train).isna().any()
-            )  # HACK
-            self.X_train, self.y_train = self.X_train[~mask], self.y_train[~mask]
-            self.model.fit(self.X_train, self.y_train)
+            self.model.fit(self.dataset["X_train"], self.dataset["y_train"])
         return self
 
     def predict(self, X: npt.ArrayLike) -> npt.ArrayLike:
@@ -120,9 +136,9 @@ class Model:
 
     def evaluate(self, X: npt.ArrayLike = None, y_true: npt.ArrayLike = None) -> pd.DataFrame:
         if X is None:
-            X = self._X_test_raw
+            X = self.dataset["X_test_raw"]
         if y_true is None:
-            y_true = self.y_test
+            y_true = self.dataset["y_test"]
 
         y_pred = self.predict(X)
         metrics = compute_evaluation_report(y_true, y_pred)
@@ -145,6 +161,7 @@ class Model:
         cv: int = 5,
         verbose: int = 5,
         scoring_metric: str = "r2",
+        set_best_model: bool = True,
     ):
         param_grid = {}
         param_grid.update(self.__format_param_grid(mode="scaler", param_grid=param_grid_scaler))
@@ -161,8 +178,13 @@ class Model:
         n_combi = len(list(itertools.product(*param_grid.values())))
         print(f"\n# of possible combinations to be cross-validated: {n_combi}")
         print(f"Metric for evaluation: {scoring_metric}")
-        answer = input("\nContinue with these Cross-validation parameters ? (y/n)")
-        if answer == "n" or answer == "no":
+        while True:
+            answer = input("\nContinue with these Cross-validation parameters ? (y/n)")
+            if answer not in ["y", "n"]:
+                print("Possible answers: 'y' or 'n'")
+                continue
+            if answer == "y":
+                break
             print("Please redefine inputs.")
             return
 
@@ -175,8 +197,12 @@ class Model:
             verbose=verbose,
         )
 
-        X_train = self.preprocessor.preprocess_data(self._X_train_raw)
-        grid_search.fit(X_train, self.y_train)
+        X_train = self.preprocessor.preprocess_data(self.dataset["X_train_raw"])
+        grid_search.fit(X_train, self.dataset["y_train"])
+
+        if set_best_model is True:
+            self._model = grid_search.best_estimator_
+
         return grid_search
 
     def plot_grid_search(self):
