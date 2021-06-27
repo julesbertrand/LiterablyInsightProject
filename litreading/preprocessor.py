@@ -113,19 +113,19 @@ class LCSPreprocessor:
             pd.DataFrame: processed text data
         """
         if asr_string_recomposition:
-            logger.info(self._compute_step_msg())
+            print(self._compute_step_msg())
             data = data.applymap(recompose_asr_string_from_dict)
 
         if to_lowercase:
-            logger.info(self._compute_step_msg())
+            print(self._compute_step_msg())
             data = data.applymap(lambda x: str(x).lower())
 
         if convert_num2words:
-            logger.info(self._compute_step_msg())
+            print(self._compute_step_msg())
             data = data.applymap(numbers_to_literals)
 
         if remove_punctuation:
-            logger.info(self._compute_step_msg())
+            print(self._compute_step_msg())
             data = data.applymap(remove_punctuation_from_string)
 
         data = data.fillna(" ")
@@ -145,7 +145,7 @@ class LCSPreprocessor:
         Returns:
             pd.DataFrame: features computed from processed df
         """
-        logger.info(self._compute_step_msg())
+        print(self._compute_step_msg())
         diff_list_df = self.compute_differ_lists(data, col_1=prompt_col, col_2=asr_transcript_col)
         words_count = diff_list_df.apply(lambda x: pd.Series(self.get_words_count(x)))
 
