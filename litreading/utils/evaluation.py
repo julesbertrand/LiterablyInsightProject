@@ -6,7 +6,9 @@ import pandas as pd
 from sklearn import metrics
 
 
-def compute_evaluation_report(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> pd.DataFrame:
+def compute_evaluation_report(
+    y_true: npt.ArrayLike, y_pred: npt.ArrayLike, total: bool = True
+) -> pd.DataFrame:
     """Compute evaluation report with metrics per bin of wcpm
 
     Args:
@@ -23,6 +25,13 @@ def compute_evaluation_report(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> p
     groups = results.groupby("bin")
     metrics = groups.apply(lambda x: pd.Series(get_evaluation_metrics(x["y"], x["yhat"])))
     metrics["n_samples"] = groups.size()
+    metrics = metrics.reset_index()
+
+    if total:
+        total_df = pd.DataFrame(get_evaluation_metrics(y_true, y_pred), index=["Total"])
+        total_df["n_samples"] = results.shape[0]
+        total_df["bin"] = "Total"
+    metrics = pd.concat([metrics, total_df]).set_index("bin")
     return metrics
 
 
