@@ -43,7 +43,8 @@ class Model:
         if not isinstance(baseline_mode, bool):
             raise TypeError("baseline_mode must be a boolean")
         self._baseline_mode = baseline_mode
-        self._build_model(scaler, estimator, verbose)
+        self.verbose = verbose
+        self._build_model(scaler, estimator)
 
     @property
     def model(self) -> Pipeline:
@@ -69,7 +70,6 @@ class Model:
         self,
         scaler: Union[str, BaseEstimator],
         estimator: Union[str, TransformerMixin],
-        verbose: bool = False,
     ) -> None:
         if self.baseline_mode:
             msg = "Baseline mode -> Instanciating Baseline Model."
@@ -85,7 +85,7 @@ class Model:
                     ("scaler", self._scaler),
                     ("estimator", self._estimator),
                 ],
-                verbose=verbose,
+                verbose=self.verbose,
             )
 
     def _check_estimator(self, estimator: Union[str, BaseEstimator]) -> None:
@@ -124,7 +124,9 @@ class Model:
         self._test_idx = self.dataset.X_test_raw.index
 
     def fit(self):
-        self._dataset.X_train = self.preprocessor.preprocess_data(self.dataset.X_train_raw)
+        self._dataset.X_train = self.preprocessor.preprocess_data(
+            self.dataset.X_train_raw, verbose=self.verbose
+        )
         mask = (
             pd.DataFrame(self.dataset.X_train).isna().any(axis=1)
             | pd.Series(self.dataset.y_train).isna().any()
@@ -137,7 +139,7 @@ class Model:
         return self
 
     def predict(self, X: pd.DataFrame) -> npt.ArrayLike:
-        X_processed = self.preprocessor.preprocess_data(X)
+        X_processed = self.preprocessor.preprocess_data(X, verbose=False)
         if self.baseline_mode:
             y_pred = X_processed[BASELINE_MODEL_PREDICTION_COL].values
         else:

@@ -34,7 +34,7 @@ class LCSPreprocessor:
             remove_punctuation (bool, optional): Remove punctuation from text. Defaults to True.
             convert_num2words (bool, optional): Convert numbers to words. Defaults to True.
         """
-        self.preprocesssing_steps = {
+        self._preprocesssing_steps = {
             "asr_string_recomposition": asr_string_recomposition,
             "to_lowercase": to_lowercase,
             "remove_punctuation": remove_punctuation,
@@ -42,25 +42,28 @@ class LCSPreprocessor:
         }
         self._init_steps()
 
+    @property
+    def preprocessing_steps(self) -> Dict[str, bool]:
+        return self._preprocesssing_steps
+
     def _init_steps(self) -> None:
         """Initialize preprocessing steps list based on attributes"""
-        self._steps = []
-        for k, v in self.preprocesssing_steps.items():
-            if v:
-                self._steps.append(k)
+        self._steps = [k for k, v in self.preprocessing_steps.items() if v]
         self._steps.append("compute_numerical_features")
 
-    def _compute_step_msg(self) -> str:
+    def _compute_and_log_step_msg(self, verbose) -> str:
         """Compute step message in logging
+
+        Args:
+            verbose (bool): If set to False, no message will be printed for each step
 
         Returns:
             str: msg to pass to logger
         """
         step_no, step_name = next(self.__steps_iter)
-        msg = (
-            f"[{self.__class__.__name__}] (step {step_no + 1} of {len(self._steps)}): {step_name}"
-        )
-        return msg
+        if verbose:
+            msg = f"[{self.__class__.__name__}] (step {step_no + 1} of {len(self._steps)}): {step_name}"
+            print(msg)
 
     def preprocess_data(
         self,
@@ -69,6 +72,7 @@ class LCSPreprocessor:
         asr_transcript_col: str = ASR_TRANSCRIPT_COL,
         human_transcript_col: str = HUMAN_TRANSCRIPT_COL,
         duration_col: str = DURATION_COL,
+        verbose: bool = True,
     ) -> pd.DataFrame:
         """Preprocess data and compute numerical features from text
 
@@ -78,6 +82,8 @@ class LCSPreprocessor:
             asr_transcript_col (str): Defaults to ASR_TRANSCRIPT_COL.
             human_transcript_col (str): Defaults to HUMAN_TRANSCRIPT_COL.
             duration_col (str): Defaults to DURATION_COL.
+            verbose (bool, optional): If True, will print a message at each preprocessing step.
+                Defaults to True.
 
         Returns:
             pd.DataFrame: features computed from processed df
@@ -87,7 +93,11 @@ class LCSPreprocessor:
         data_ = df.copy()
 
         text_cols = [prompt_col, asr_transcript_col, human_transcript_col]
-        data_[text_cols] = self.preprocess_text(data_[text_cols], **self.preprocesssing_steps)
+        data_[text_cols] = self.preprocess_text(
+            data_[text_cols], **self.preprocessing_steps, verbose=verbose
+        )
+
+        self._compute_and_log_step_msg(verbose)
         features = self.compute_numerical_features(
             data_, prompt_col, asr_transcript_col, duration_col
         )
@@ -100,6 +110,7 @@ class LCSPreprocessor:
         remove_punctuation: bool = True,
         convert_num2words: bool = True,
         asr_string_recomposition: bool = False,
+        verbose: bool = True,
     ) -> pd.DataFrame:
         """Preprocess dataframe. All columns must be text. Nans are filled with ' '
 
@@ -109,24 +120,26 @@ class LCSPreprocessor:
             remove_punctuation (bool, optional): [description]. Defaults to True.
             convert_num2words (bool, optional): [description]. Defaults to True.
             asr_string_recomposition (bool, optional): [description]. Defaults to False.
+            verbose (bool, optional): If True, will print a message at each preprocessing step.
+                Defaults to True.
 
         Returns:
             pd.DataFrame: processed text data
         """
         if asr_string_recomposition:
-            print(self._compute_step_msg())
+            self._compute_and_log_step_msg(verbose)
             data = data.applymap(recompose_asr_string_from_dict)
 
         if to_lowercase:
-            print(self._compute_step_msg())
+            self._compute_and_log_step_msg(verbose)
             data = data.applymap(lambda x: str(x).lower())
 
         if convert_num2words:
-            print(self._compute_step_msg())
+            self._compute_and_log_step_msg(verbose)
             data = data.applymap(numbers_to_literals)
 
         if remove_punctuation:
-            print(self._compute_step_msg())
+            self._compute_and_log_step_msg(verbose)
             data = data.applymap(remove_punctuation_from_string)
 
         data = data.fillna(" ")
@@ -148,7 +161,6 @@ class LCSPreprocessor:
         Returns:
             pd.DataFrame: features computed from processed df
         """
-        print(self._compute_step_msg())
         diff_list_df = self.compute_differ_lists(data, col_1=prompt_col, col_2=asr_transcript_col)
         words_count = diff_list_df.apply(lambda x: pd.Series(self.get_words_count(x)))
 

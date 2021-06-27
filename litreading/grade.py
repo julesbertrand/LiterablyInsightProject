@@ -39,7 +39,7 @@ class Grader:
         return self._baseline_mode
 
     def grade(self, X: pd.DataFrame) -> npt.ArrayLike:
-        X_processed = self.preprocessor.preprocess_data(X)
+        X_processed = self.preprocessor.preprocess_data(X, verbose=False)
         if self.baseline_mode:
             y_pred = X_processed[BASELINE_MODEL_PREDICTION_COL].values
         else:
