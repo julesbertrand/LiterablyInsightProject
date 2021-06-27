@@ -1,4 +1,5 @@
-from typing import Any, Dict, Union
+import itertools
+from typing import Any, Dict, List, Literal, Union
 
 import numpy.typing as npt
 import pandas as pd
@@ -10,7 +11,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
 
-from litreading.config import HUMAN_WCPM_COL, SEED
+from litreading.config import BASELINE_MODEL_PREDICTION_COL, HUMAN_WCPM_COL, SEED
 from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.evaluation import compute_evaluation_report
 
@@ -24,14 +25,15 @@ class Model:
         estimator: Union[str, BaseEstimator] = "default",
         scaler: Union[str, TransformerMixin] = "default",
         baseline_mode: bool = False,
+        verbose: bool = False,
     ) -> None:
         if not isinstance(baseline_mode, bool):
-            raise TypeError("baseline_mode must be a bool")
+            raise TypeError("baseline_mode must be a boolean")
         self._baseline_mode = baseline_mode
-        self._build_model(scaler, estimator)
+        self._build_model(scaler, estimator, verbose)
 
     @property
-    def model(self) -> Union[Pipeline, TransformerMixin]:
+    def model(self) -> Pipeline:
         return self._model
 
     @property
@@ -43,9 +45,12 @@ class Model:
         return self._baseline_mode
 
     def _build_model(
-        self, scaler: Union[str, BaseEstimator], estimator: Union[str, TransformerMixin]
+        self,
+        scaler: Union[str, BaseEstimator],
+        estimator: Union[str, TransformerMixin],
+        verbose: bool = False,
     ) -> None:
-        if self._baseline_mode:
+        if self.baseline_mode:
             msg = "Baseline mode -> Instanciating Baseline Model. Any scaler or estimator argument will be ignored."
             msg += "\nThe prediction is the word correct count based on differ list."
             logger.warning(msg)
@@ -58,7 +63,7 @@ class Model:
                     ("scaler", self._scaler),
                     ("estimator", self._estimator),
                 ],
-                verbose=True,
+                verbose=verbose,
             )
 
     def _check_estimator(self, estimator: Union[str, BaseEstimator]) -> None:
@@ -96,21 +101,21 @@ class Model:
 
     def fit(self):
         self.X_train = self.preprocessor.preprocess_data(self._X_train_raw)
-        if not self._baseline_mode:
+        if not self.baseline_mode:
             mask = (
                 pd.DataFrame(self.X_train).isna().any(axis=1)
                 | pd.Series(self.y_train).isna().any()
             )  # HACK
             self.X_train, self.y_train = self.X_train[~mask], self.y_train[~mask]
-            self._model.fit(self.X_train, self.y_train)
+            self.model.fit(self.X_train, self.y_train)
         return self
 
     def predict(self, X: npt.ArrayLike) -> npt.ArrayLike:
         X_processed = self.preprocessor.preprocess_data(X)
-        if self._baseline_mode:
-            y_pred = X_processed["correct_words_pm"]
+        if self.baseline_mode:
+            y_pred = X_processed[BASELINE_MODEL_PREDICTION_COL].values
         else:
-            y_pred = self._model.predict(X_processed)
+            y_pred = self.model.predict(X_processed)
         return y_pred
 
     def evaluate(self, X: npt.ArrayLike = None, y_true: npt.ArrayLike = None) -> pd.DataFrame:
@@ -123,21 +128,55 @@ class Model:
         metrics = compute_evaluation_report(y_true, y_pred)
         return metrics
 
+    @staticmethod
+    def __format_param_grid(
+        mode=Literal["scaler", "estimator"], param_grid: Dict[str, List[Any]] = None
+    ) -> Dict[str, List[Any]]:
+        if param_grid is not None:
+            param_grid = {f"{mode}__{k}": v for k, v in param_grid.items()}
+        else:
+            param_grid = {}
+        return param_grid
+
     def grid_search(
         self,
-        params_grid: Dict[str, Any],
+        param_grid_scaler: Dict[str, List[Any]] = None,
+        param_grid_estimator: Dict[str, List[Any]] = None,
         cv: int = 5,
-        verbose: int = 2,
+        verbose: int = 5,
         scoring_metric: str = "r2",
     ):
+        param_grid = {}
+        param_grid.update(self.__format_param_grid(mode="scaler", param_grid=param_grid_scaler))
+        param_grid.update(
+            self.__format_param_grid(mode="estimator", param_grid=param_grid_estimator)
+        )
+        if len(param_grid) == 0:
+            raise ValueError("Please give at least one param to test")
+
+        print(f"\n{' Model: ' :-^120}")
+        print(self.model)
+        print(f"\n{' Params to be tested: ' :-^120}")
+        [print(f"{key}: {value}") for key, value in param_grid.items()]
+        n_combi = len(list(itertools.product(*param_grid.values())))
+        print(f"\n# of possible combinations to be cross-validated: {n_combi}")
+        print(f"Metric for evaluation: {scoring_metric}")
+        answer = input("\nContinue with these Cross-validation parameters ? (y/n)")
+        if answer == "n" or answer == "no":
+            print("Please redefine inputs.")
+            return
+
         grid_search = GridSearchCV(
-            estimator=self._model,
-            param_grid=params_grid,
+            estimator=self.model,
+            param_grid=param_grid,
             scoring=scoring_metric,
             cv=cv,
             n_jobs=-1,
             verbose=verbose,
         )
+
+        X_train = self.preprocessor.preprocess_data(self._X_train_raw)
+        grid_search.fit(X_train, self.y_train)
         return grid_search
 
     def plot_grid_search(self):

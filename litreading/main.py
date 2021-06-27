@@ -11,15 +11,18 @@ from litreading.model import Model
 
 def main():
     logger.configure(handlers=[{"sink": sys.stderr, "level": "INFO"}])
+    # df = pd.read_csv("./tests/samples/test_data.csv")
     df = pd.read_csv("./data/larger_wcpm.csv")
     print(df.head())
     m = Model(estimator=RandomForestRegressor(), scaler=StandardScaler(), baseline_mode=False)
     m.prepare_train_test_set(df)
-    m = m.fit()
-    perfs = m.evaluate()
-    print(perfs)
+    # m = m.fit()
+    # perfs = m.evaluate()
+    # print(perfs)
     g = Grader(baseline_mode=True)
-    print(g.grade(df))
+    print(list(g.grade(df)))
+    gs = m.grid_search(param_grid_estimator={"n_estimators": [100, 200, 300]})
+    print(pd.DataFrame(gs.cv_results_))
 
 
 if __name__ == "__main__":

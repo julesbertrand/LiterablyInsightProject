@@ -1,11 +1,12 @@
 from pathlib import Path
 from typing import Union
 
+import numpy.typing as npt
 import pandas as pd
 from loguru import logger
 from sklearn.pipeline import Pipeline
 
-from litreading.config import BASELINE_MODEL_PREDICTION_COL, MODELS_PATH
+from litreading.config import BASELINE_MODEL_PREDICTION_COL
 from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.files import open_file
 
@@ -35,7 +36,7 @@ class Grader:
     def baseline_mode(self) -> bool:
         return self._baseline_mode
 
-    def grade(self, X: pd.DataFrame) -> pd.DataFrame:
+    def grade(self, X: pd.DataFrame) -> npt.ArrayLike:
         X_processed = self.preprocessor.preprocess_data(X)
         if self.baseline_mode:
             grades = X_processed[BASELINE_MODEL_PREDICTION_COL].values
@@ -45,7 +46,8 @@ class Grader:
 
     @staticmethod
     def __load_model_from_file(model_filepath: Union[str, Path]) -> Pipeline:
-        model_filepath = MODELS_PATH / model_filepath
+        if not Path(model_filepath).is_file():
+            raise FileNotFoundError(model_filepath)
         logger.info(f"Loading model from {model_filepath}")
         model = open_file(model_filepath)
         return model
