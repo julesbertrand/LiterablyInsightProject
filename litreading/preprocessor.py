@@ -56,7 +56,9 @@ class LCSPreprocessor:
             str: msg to pass to logger
         """
         step_no, step_name = next(self.__steps_iter)
-        msg = f"[Preprocessing] (step {step_no + 1} of {len(self._steps)}): {step_name}"
+        msg = (
+            f"[{self.__class__.__name__}] (step {step_no + 1} of {len(self._steps)}): {step_name}"
+        )
         return msg
 
     def preprocess_data(

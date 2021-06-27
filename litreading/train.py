@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal, Union
+from typing import Any, Dict, Union
 
 import numpy.typing as npt
 import pandas as pd
@@ -23,9 +23,12 @@ class Model:
         self,
         estimator: Union[str, BaseEstimator] = "default",
         scaler: Union[str, TransformerMixin] = "default",
-        mode: Literal["custom", "baseline"] = "custom",
+        baseline_mode: bool = False,
     ) -> None:
-        self._build_model(scaler, estimator, mode)
+        if not isinstance(baseline_mode, bool):
+            raise TypeError("baseline_mode must be a bool")
+        self._baseline_mode = baseline_mode
+        self._build_model(scaler, estimator)
 
     @property
     def model(self) -> Union[Pipeline, TransformerMixin]:
@@ -36,16 +39,18 @@ class Model:
         return self._preprocessor
 
     @property
-    def mode(self) -> Literal["custom", "baseline"]:
-        return self._mode
+    def baseline_mode(self) -> bool:
+        return self._baseline_mode
 
-    def _build_model(self, scaler, estimator, mode) -> None:
-        if mode == "baseline":
-            msg = "mode = 'baseline' -> Initializing Baseline model. Any scaler or estimator argument will be ignored."
+    def _build_model(
+        self, scaler: Union[str, BaseEstimator], estimator: Union[str, TransformerMixin]
+    ) -> None:
+        if self._baseline_mode:
+            msg = "Baseline mode -> Instanciating Baseline Model. Any scaler or estimator argument will be ignored."
             msg += "\nThe prediction is the word correct count based on differ list."
             logger.warning(msg)
             self._model = None
-        elif mode == "custom":
+        else:
             self._check_estimator(estimator)
             self._check_scaler(scaler)
             self._model = Pipeline(
@@ -55,9 +60,6 @@ class Model:
                 ],
                 verbose=True,
             )
-        else:
-            raise ValueError("mode must be one of 'custom', 'baseline'")
-        self._mode = mode
 
     def _check_estimator(self, estimator: Union[str, BaseEstimator]) -> None:
         if isinstance(estimator, str):
@@ -92,9 +94,9 @@ class Model:
         )
         self._test_idx = self._X_test_raw.index
 
-    def fit(self) -> None:
+    def fit(self):
         self.X_train = self.preprocessor.preprocess_data(self._X_train_raw)
-        if self._mode == "custom":
+        if not self._baseline_mode:
             mask = (
                 pd.DataFrame(self.X_train).isna().any(axis=1)
                 | pd.Series(self.y_train).isna().any()
@@ -103,10 +105,10 @@ class Model:
             self._model.fit(self.X_train, self.y_train)
         return self
 
-    def predict(self, X: npt.ArrayLike) -> None:
+    def predict(self, X: npt.ArrayLike) -> npt.ArrayLike:
         X_processed = self.preprocessor.preprocess_data(X)
-        if self._mode == "baseline":
-            y_pred = X_processed["correct"]
+        if self._baseline_mode:
+            y_pred = X_processed["correct_words_pm"]
         else:
             y_pred = self._model.predict(X_processed)
         return y_pred
