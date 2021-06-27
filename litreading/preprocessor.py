@@ -135,7 +135,9 @@ class LCSPreprocessor:
     def compute_numerical_features(
         self, data: pd.DataFrame, prompt_col: str, asr_transcript_col: str, duration_col: str
     ) -> pd.DataFrame:
-        """Compute numerical features such as nm of words similar, added, removed, replaced, means, stds
+        """Compute numerical features such as:
+            - number of words similar, added, removed, replaced
+            - length of words means, stds
 
         Args:
             data (pd.DataFrame): processed text data with duration col to compute features
@@ -237,7 +239,7 @@ class LCSPreprocessor:
         for i, word in enumerate(differ_list):
             if skip_next > 0:
                 skip_next -= 1
-                pass  # when the word has already been added to the error dict
+                continue  # when the word has already been added to the error dict
             if word[0] == " ":
                 correct += 1  # + 1 if word correct
             elif i < n - 2:  # keep track of mistakes

@@ -72,7 +72,8 @@ class Model:
         verbose: bool = False,
     ) -> None:
         if self.baseline_mode:
-            msg = "Baseline mode -> Instanciating Baseline Model. Any scaler or estimator argument will be ignored."
+            msg = "Baseline mode -> Instanciating Baseline Model."
+            msg += " Any scaler or estimator argument will be ignored."
             msg += "\nThe prediction is the word correct count based on differ list."
             logger.warning(msg)
             self._model = None
@@ -90,7 +91,7 @@ class Model:
     def _check_estimator(self, estimator: Union[str, BaseEstimator]) -> None:
         if isinstance(estimator, str):
             raise NotImplementedError
-        elif isinstance(estimator, BaseEstimator):
+        if isinstance(estimator, BaseEstimator):
             if base.is_classifier(estimator):
                 raise TypeError("estimator must be a sklearn-like regressor")
             self._estimator = estimator
@@ -100,7 +101,7 @@ class Model:
     def _check_scaler(self, scaler: Union[str, TransformerMixin]) -> None:
         if isinstance(scaler, str):
             raise NotImplementedError
-        elif isinstance(scaler, TransformerMixin):
+        if isinstance(scaler, TransformerMixin):
             if not hasattr(scaler, "fit_transform"):
                 raise TypeError("scaler must be a sklearn-like classifier")
             self._scaler = scaler
@@ -135,7 +136,7 @@ class Model:
             self.model.fit(self.dataset.X_train, self.dataset.y_train)
         return self
 
-    def predict(self, X: npt.ArrayLike) -> npt.ArrayLike:
+    def predict(self, X: pd.DataFrame) -> npt.ArrayLike:
         X_processed = self.preprocessor.preprocess_data(X)
         if self.baseline_mode:
             y_pred = X_processed[BASELINE_MODEL_PREDICTION_COL].values
@@ -183,7 +184,8 @@ class Model:
         print(f"\n{' Model: ' :-^120}")
         print(self.model)
         print(f"\n{' Params to be tested: ' :-^120}")
-        [print(f"{key}: {value}") for key, value in param_grid.items()]
+        for key, value in param_grid.items():
+            print(f"{key}: {value}")
         n_combi = len(list(itertools.product(*param_grid.values())))
         print(f"\n# of possible combinations to be cross-validated: {n_combi}")
         print(f"Metric for evaluation: {scoring_metric}")
@@ -195,7 +197,7 @@ class Model:
             if answer == "y":
                 break
             print("Please redefine inputs.")
-            return
+            return None
 
         grid_search = GridSearchCV(
             estimator=self.model,
@@ -225,7 +227,6 @@ class Model:
         fig = plot_grid_search(cv_results, x=x, y=y, hue=hue, x_log_scale=x_log_scale)
         return fig
 
-    @staticmethod
     def plot_feature_importance(self, threshold: float = 0.005):
         fig = feature_importance(
             self.model["estimator"], self.dataset.X_train.columns, threshold=threshold

@@ -41,10 +41,10 @@ class Grader:
     def grade(self, X: pd.DataFrame) -> npt.ArrayLike:
         X_processed = self.preprocessor.preprocess_data(X)
         if self.baseline_mode:
-            grades = X_processed[BASELINE_MODEL_PREDICTION_COL].values
+            y_pred = X_processed[BASELINE_MODEL_PREDICTION_COL].values
         else:
-            grades = self.model.predict(X_processed)
-        return grades
+            y_pred = self.model.predict(X_processed)
+        return y_pred
 
     @staticmethod
     def __load_model_from_file(model_filepath: Union[str, Path]) -> Pipeline:
