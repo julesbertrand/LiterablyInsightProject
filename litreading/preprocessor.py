@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 
 from litreading.config import (
     ASR_TRANSCRIPT_COL,
@@ -10,7 +11,6 @@ from litreading.config import (
     HUMAN_TRANSCRIPT_COL,
     PROMPT_TEXT_COL,
 )
-from litreading.utils.logging import logger
 from litreading.utils.text import (
     numbers_to_literals,
     recompose_asr_string_from_dict,

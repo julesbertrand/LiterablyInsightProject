@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from num2words import num2words  # preprocessing
 
 from litreading.config import (
@@ -20,7 +21,6 @@ from litreading.config import (
     PROMPT_TEXT_COL,
 )
 from litreading.utils.files import save_file
-from litreading.utils.logging import logger
 
 
 class Dataset:

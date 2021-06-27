@@ -3,6 +3,7 @@ DataGrader class to predict WCPM
 """
 
 import pandas as pd
+from loguru import logger
 
 from litreading.config import (
     ASR_TRANSCRIPT_COL,
@@ -17,7 +18,6 @@ from litreading.config import (
 from litreading.dataset import Dataset
 from litreading.utils.baseline import BaselineModel
 from litreading.utils.files import open_file
-from litreading.utils.logging import logger
 
 
 # main function

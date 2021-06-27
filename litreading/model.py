@@ -2,6 +2,7 @@ from typing import Any, Dict, Union
 
 import numpy.typing as npt
 import pandas as pd
+from loguru import logger
 
 # from sklearn.preprocessing import FunctionTransformer
 from sklearn import base
@@ -12,7 +13,6 @@ from sklearn.pipeline import Pipeline
 from litreading.config import HUMAN_WCPM_COL, SEED
 from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.evaluation import compute_evaluation_report
-from litreading.utils.logging import logger
 
 
 class Model:

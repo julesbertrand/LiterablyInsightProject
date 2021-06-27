@@ -4,8 +4,7 @@ from typing import Union
 
 import joblib
 import pandas as pd
-
-from litreading.utils.logging import logger
+from loguru import logger
 
 
 def open_file(filepath: Union[str, Path], sep: str = ";"):

@@ -1,2 +1,2 @@
 # flake8: noqa
-from litreading.train import Model
+from litreading.model import Model
