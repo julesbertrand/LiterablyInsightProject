@@ -8,14 +8,14 @@ from loguru import logger
 
 from sklearn.pipeline import Pipeline
 
-from litreading.config import BASELINE_MODEL_PREDICTION_COL
+from litreading.config import BASELINE_MODEL_PREDICTION_COL, PREPROCESSING_STEPS
 from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.files import open_file
 
 
 class Grader:
 
-    _preprocessor = LCSPreprocessor()
+    _preprocessor = LCSPreprocessor(**PREPROCESSING_STEPS)
 
     def __init__(
         self, model_filepath: Union[str, Path] = None, baseline_mode: bool = False

@@ -7,5 +7,12 @@ DURATION_COL = "scored_duration"
 
 
 """ Model general params """
+PREPROCESSING_STEPS = {
+    "to_lowercase": True,
+    "remove_punctuation": True,
+    "convert_num2words": True,
+    "asr_string_recomposition": False,
+}
+
 SEED = 12
 BASELINE_MODEL_PREDICTION_COL = "correct_words_pm"

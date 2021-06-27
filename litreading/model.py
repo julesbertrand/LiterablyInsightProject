@@ -13,7 +13,12 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
 
-from litreading.config import BASELINE_MODEL_PREDICTION_COL, HUMAN_WCPM_COL, SEED
+from litreading.config import (
+    BASELINE_MODEL_PREDICTION_COL,
+    HUMAN_WCPM_COL,
+    PREPROCESSING_STEPS,
+    SEED,
+)
 from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.evaluation import compute_evaluation_report
 from litreading.utils.visualization import feature_importance, plot_grid_search
@@ -31,7 +36,7 @@ class Dataset:
 
 class Model:
 
-    _preprocessor = LCSPreprocessor()
+    _preprocessor = LCSPreprocessor(**PREPROCESSING_STEPS)
 
     def __init__(
         self,
@@ -59,7 +64,7 @@ class Model:
         return self._baseline_mode
 
     @property
-    def dataset(self) -> Dict[str, pd.DataFrame]:
+    def dataset(self) -> Dataset:
         if not hasattr(self, "_dataset"):
             raise AttributeError(
                 "training and test set not defined. Please start by using self._prepare_train_test_set"
@@ -183,14 +188,15 @@ class Model:
         if len(param_grid) == 0:
             raise ValueError("Please give at least one param to test")
 
-        print(f"\n{' Model: ' :-^120}")
-        print(self.model)
-        print(f"\n{' Params to be tested: ' :-^120}")
-        for key, value in param_grid.items():
-            print(f"{key}: {value}")
+        msg = f"\n{' Model: ' :-^120}\n"
+        msg += f"{self.model}\n"
+        msg += f"\n{' Params to be tested: ' :-^120}\n"
+        msg += "\n".join([f"{key}: {value}" for key, value in param_grid.items()])
         n_combi = len(list(itertools.product(*param_grid.values())))
-        print(f"\n# of possible combinations to be cross-validated: {n_combi}")
-        print(f"Metric for evaluation: {scoring_metric}")
+        msg += f"\n\n# of possible combinations for cross-validation: {n_combi}"
+        msg += f"\nMetric for evaluation: {scoring_metric}"
+        logger.info(msg)
+
         while True:
             answer = input("\nContinue with these Cross-validation parameters ? (y/n)")
             if answer not in ["y", "n"]:
@@ -198,8 +204,11 @@ class Model:
                 continue
             if answer == "y":
                 break
-            print("Please redefine inputs.")
+            logger.error("Please redefine inputs.")
             return None
+
+        verbose_model = self.model.verbose
+        self._model.verbose = False
 
         grid_search = GridSearchCV(
             estimator=self.model,
@@ -210,11 +219,15 @@ class Model:
             verbose=verbose,
         )
 
-        X_train = self.preprocessor.preprocess_data(self.dataset.X_train_raw)
-        grid_search.fit(X_train, self.dataset.y_train)
+        self._dataset.X_train = self.preprocessor.preprocess_data(
+            self.dataset.X_train_raw, verbose=verbose > 0
+        )
+        grid_search.fit(self.dataset.X_train, self.dataset.y_train)
 
         if set_best_model is True:
             self._model = grid_search.best_estimator_
+
+        self._model.verbose = verbose_model
 
         return grid_search
 
