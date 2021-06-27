@@ -107,6 +107,9 @@ def plot_grid_search(
         plt.Figure: [description]
     """
     cv_results = pd.DataFrame(cv_results)
+    for col in [x, y, hue]:
+        if col not in cv_results.columns:
+            raise ValueError(f"cv_results does not have a '{col}' column.")
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 4))
 

@@ -2,6 +2,7 @@ import numpy.typing as npt
 from typing import Any, Dict, List, Literal, Union
 
 import itertools
+from dataclasses import dataclass, field
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -16,6 +17,16 @@ from litreading.config import BASELINE_MODEL_PREDICTION_COL, HUMAN_WCPM_COL, SEE
 from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.evaluation import compute_evaluation_report
 from litreading.utils.visualization import feature_importance, plot_grid_search
+
+
+@dataclass
+class Dataset:
+    X_train_raw: pd.DataFrame
+    X_test_raw: pd.DataFrame
+    y_train: pd.Series
+    y_test: pd.Series
+    X_train: pd.DataFrame = field(init=False, default=None)
+    X_test: pd.DataFrame = field(init=False, default=None)
 
 
 class Model:
@@ -101,31 +112,27 @@ class Model:
         dataset: pd.DataFrame,
         test_set_size: float = 0.2,
     ) -> None:
-        X_train_raw, X_test_raw, y_train, y_test = train_test_split(
-            dataset.drop(columns=[HUMAN_WCPM_COL]),
-            dataset[HUMAN_WCPM_COL],
-            test_size=test_set_size,
-            random_state=SEED,
+        self._dataset = Dataset(
+            *train_test_split(
+                dataset.drop(columns=[HUMAN_WCPM_COL]),
+                dataset[HUMAN_WCPM_COL],
+                test_size=test_set_size,
+                random_state=SEED,
+            )
         )
-        self._dataset = {
-            "X_train_raw": X_train_raw,
-            "X_test_raw": X_test_raw,
-            "y_train": y_train,
-            "y_test": y_test,
-        }
-        self._test_idx = X_test_raw.index
+        self._test_idx = self.dataset.X_test_raw.index
 
     def fit(self):
-        self._dataset["X_train"] = self.preprocessor.preprocess_data(self.dataset["X_train_raw"])
+        self._dataset.X_train = self.preprocessor.preprocess_data(self.dataset.X_train_raw)
         mask = (
-            pd.DataFrame(self.dataset["X_train"]).isna().any(axis=1)
-            | pd.Series(self.dataset["y_train"]).isna().any()
+            pd.DataFrame(self.dataset.X_train).isna().any(axis=1)
+            | pd.Series(self.dataset.y_train).isna().any()
         )  # HACK
-        self._dataset["X_train"] = self.dataset["X_train"][~mask]
-        self._dataset["y_train"] = self.dataset["y_train"][~mask]
+        self._dataset.X_train = self.dataset.X_train[~mask]
+        self._dataset.y_train = self.dataset.y_train[~mask]
 
         if not self.baseline_mode:
-            self.model.fit(self.dataset["X_train"], self.dataset["y_train"])
+            self.model.fit(self.dataset.X_train, self.dataset.y_train)
         return self
 
     def predict(self, X: npt.ArrayLike) -> npt.ArrayLike:
@@ -138,9 +145,9 @@ class Model:
 
     def evaluate(self, X: npt.ArrayLike = None, y_true: npt.ArrayLike = None) -> pd.DataFrame:
         if X is None:
-            X = self.dataset["X_test_raw"]
+            X = self.dataset.X_test_raw
         if y_true is None:
-            y_true = self.dataset["y_test"]
+            y_true = self.dataset.y_test
 
         y_pred = self.predict(X)
         metrics = compute_evaluation_report(y_true, y_pred)
@@ -199,8 +206,8 @@ class Model:
             verbose=verbose,
         )
 
-        X_train = self.preprocessor.preprocess_data(self.dataset["X_train_raw"])
-        grid_search.fit(X_train, self.dataset["y_train"])
+        X_train = self.preprocessor.preprocess_data(self.dataset.X_train_raw)
+        grid_search.fit(X_train, self.dataset.y_train)
 
         if set_best_model is True:
             self._model = grid_search.best_estimator_
@@ -209,15 +216,19 @@ class Model:
 
     @staticmethod
     def plot_grid_search(
-        cv_results: dict, x: str, y: str, hue: str = None, x_log_scale: bool = False
+        cv_results: dict,
+        x: str,
+        y: str = "mean_test_score",
+        hue: str = None,
+        x_log_scale: bool = False,
     ) -> plt.Figure:
-        fig = plot_grid_search(cv_results, x=x, y=y, hue=hue, log_scale=x_log_scale)
+        fig = plot_grid_search(cv_results, x=x, y=y, hue=hue, x_log_scale=x_log_scale)
         return fig
 
     @staticmethod
     def plot_feature_importance(self, threshold: float = 0.005):
         fig = feature_importance(
-            self.model["estimator"], self.dataset["X_train"].columns, threshold=threshold
+            self.model["estimator"], self.dataset.X_train.columns, threshold=threshold
         )
         return fig
 
