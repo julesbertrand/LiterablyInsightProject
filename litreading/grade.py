@@ -50,8 +50,17 @@ class Grader:
     def __load_model_from_file(model_filepath: Union[str, Path]) -> Pipeline:
         if not Path(model_filepath).is_file():
             raise FileNotFoundError(model_filepath)
-        logger.info(f"Loading model from {model_filepath}")
+        if model_filepath.suffix != ".pkl":
+            raise ValueError("Please give a path to pickle file")
+
         model = open_file(model_filepath)
+
+        if not isinstance(model, Pipeline):
+            raise ValueError(
+                "Incompatible model: please give a filepath to a sklearn pipeline object"
+            )
+
+        logger.info(f"Model loaded from {model_filepath}: {model}")
         return model
 
     def train_model(self, dataset: pd.DataFrame) -> None:

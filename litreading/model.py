@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Literal, Union
 
 import itertools
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -21,6 +22,7 @@ from litreading.config import (
 )
 from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.evaluation import compute_evaluation_report
+from litreading.utils.files import open_file, save_to_file
 from litreading.utils.visualization import feature_importance, plot_grid_search
 
 
@@ -257,5 +259,29 @@ class Model:
     def plot_train_test_feature_distributions(self):
         raise NotImplementedError
 
-    def save_model(self):
-        raise NotImplementedError
+    @classmethod
+    def load_from_file(cls, model_filepath: Union[str, Path]) -> Pipeline:
+        model_filepath = Path(model_filepath)
+        if not model_filepath.is_file():
+            raise FileNotFoundError(model_filepath)
+        if model_filepath.suffix != ".pkl":
+            raise ValueError("Please give a path to pickle file")
+
+        model_ = open_file(model_filepath)
+
+        if not isinstance(model_, Pipeline):
+            raise ValueError(
+                "Incompatible model: please give a filepath to a sklearn pipeline object"
+            )
+
+        scaler = model_.steps[0][1]
+        estimator = model_.steps[1][1]
+        model = cls(estimator=estimator, scaler=scaler, baseline_mode=False)
+
+        logger.info(f"Model loaded from {model_filepath}: \n{model_}")
+        return model
+
+    def save_model(
+        self, filepath: Union[str, Path], version: bool = True, overwrite: bool = False
+    ) -> None:
+        save_to_file(self.model, filepath, version=version, overwrite=overwrite, makedirs=True)
