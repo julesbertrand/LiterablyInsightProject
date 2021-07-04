@@ -40,6 +40,7 @@ class LCSPreprocessor:
             "remove_punctuation": remove_punctuation,
             "convert_num2words": convert_num2words,
         }
+        self.__steps_iter = None
         self._init_steps()
 
     @property
@@ -56,9 +57,6 @@ class LCSPreprocessor:
 
         Args:
             verbose (bool): If set to False, no message will be printed for each step
-
-        Returns:
-            str: msg to pass to logger
         """
         step_no, step_name = next(self.__steps_iter)
         if verbose:
@@ -219,8 +217,8 @@ class LCSPreprocessor:
         if not isinstance(str_a, str) or not isinstance(str_b, str):
             raise TypeError("Compared strings must be of string type")
 
-        differ_list = difflib.Differ().compare(str_a.split(split_car), str_b.split(split_car))
-        differ_list = list(differ_list)
+        differ_list_ = difflib.Differ().compare(str_a.split(split_car), str_b.split(split_car))
+        differ_list = list(differ_list_)
 
         # if a lot of characters at the end were added or removed from prompt
         # then delete them from differ list
@@ -279,7 +277,7 @@ class LCSPreprocessor:
             "removed": removed,
             "replaced": len(errors_dict[PROMPT_TEXT_COL]),
         }
-        return words_count  # , errors_dict
+        return words_count
 
     @staticmethod
     def get_words_length_stats(s: str, sep: str = " ") -> Tuple[int, int]:
@@ -295,7 +293,7 @@ class LCSPreprocessor:
         """
         s = s.split(sep)
         if len(s) == 0:
-            return 0
+            return 0, 0
         s = [len(word) for word in s]
         mean = np.mean(s)
         std = np.std(s)

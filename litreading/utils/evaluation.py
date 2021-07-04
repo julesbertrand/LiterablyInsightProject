@@ -24,16 +24,16 @@ def compute_evaluation_report(
         lambda x: "<75" if x < 75 else ("75-150" if x < 150 else "150+")
     )
     groups = results.groupby("bin")
-    metrics = groups.apply(lambda x: pd.Series(get_evaluation_metrics(x["y"], x["yhat"])))
-    metrics["n_samples"] = groups.size()
-    metrics = metrics.reset_index()
+    metrics_df = groups.apply(lambda x: pd.Series(get_evaluation_metrics(x["y"], x["yhat"])))
+    metrics_df["n_samples"] = groups.size()
+    metrics_df = metrics_df.reset_index()
 
     if total:
         total_df = pd.DataFrame(get_evaluation_metrics(y_true, y_pred), index=["Total"])
         total_df["n_samples"] = results.shape[0]
         total_df["bin"] = "Total"
-    metrics = pd.concat([metrics, total_df]).set_index("bin")
-    return metrics
+    metrics_df = pd.concat([metrics_df, total_df]).set_index("bin")
+    return metrics_df
 
 
 def get_evaluation_metrics(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> Dict[str, Any]:

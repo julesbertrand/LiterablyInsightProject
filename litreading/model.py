@@ -49,9 +49,15 @@ class Model:
     ) -> None:
         if not isinstance(baseline_mode, bool):
             raise TypeError("baseline_mode must be a boolean")
+
         self._baseline_mode = baseline_mode
         self.verbose = verbose
+        self._scaler = None
+        self._estimator = None
+        self._model = None
         self._build_model(scaler, estimator)
+
+        self._dataset = None
 
     @property
     def model(self) -> Pipeline:
@@ -128,7 +134,7 @@ class Model:
                 random_state=SEED,
             )
         )
-        self._test_idx = self.dataset.X_test_raw.index
+        # self._test_idx = self.dataset.X_test_raw.index
 
     def fit(self):
         self._dataset.X_train = self.preprocessor.preprocess_data(

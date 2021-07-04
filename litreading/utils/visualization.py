@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, Dict, List
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
@@ -85,7 +85,7 @@ def feature_importance(
 
 
 def plot_grid_search(
-    cv_results: dict,
+    cv_results: Dict[str, Any],
     x: str,
     hue: str = None,
     y: str = "mean_test_score",
@@ -106,15 +106,15 @@ def plot_grid_search(
     Returns:
         plt.Figure: [description]
     """
-    cv_results = pd.DataFrame(cv_results)
+    cv_results_df = pd.DataFrame(cv_results)
     for col in [x, y, hue]:
         if col is not None:
-            if col not in cv_results.columns:
+            if col not in cv_results_df.columns:
                 raise ValueError(f"cv_results does not have a '{col}' column.")
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 4))
 
-    sns.lineplot(data=cv_results, x=x, y=y, hue=hue, palette=COLOR_PALETTE)
+    sns.lineplot(data=cv_results_df, x=x, y=y, hue=hue, palette=COLOR_PALETTE)
 
     ax.set_title("Grid Search Scores", fontsize=20, fontweight="bold")
     ax.set_xlabel(x, fontsize=16)
