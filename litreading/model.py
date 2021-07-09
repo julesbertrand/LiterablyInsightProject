@@ -2,7 +2,6 @@ import numpy.typing as npt
 from typing import Any, Dict, List, Literal, Union
 
 import itertools
-from dataclasses import dataclass, field
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -14,29 +13,15 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
 
-from litreading.config import (
-    BASELINE_MODEL_PREDICTION_COL,
-    HUMAN_WCPM_COL,
-    PREPROCESSING_STEPS,
-    SEED,
-)
+from litreading.base import BaseModel, Dataset, load_model_from_file
+from litreading.config import HUMAN_WCPM_COL, PREPROCESSING_STEPS, SEED
 from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.evaluation import compute_evaluation_report
-from litreading.utils.files import open_file, save_to_file
+from litreading.utils.files import save_to_file
 from litreading.utils.visualization import feature_importance, plot_grid_search
 
 
-@dataclass
-class Dataset:
-    X_train_raw: pd.DataFrame
-    X_test_raw: pd.DataFrame
-    y_train: pd.Series
-    y_test: pd.Series
-    X_train: pd.DataFrame = field(init=False, default=None)
-    X_test: pd.DataFrame = field(init=False, default=None)
-
-
-class Model:
+class Model(BaseModel):
 
     _preprocessor = LCSPreprocessor(**PREPROCESSING_STEPS)
 
@@ -47,10 +32,7 @@ class Model:
         baseline_mode: bool = False,
         verbose: bool = False,
     ) -> None:
-        if not isinstance(baseline_mode, bool):
-            raise TypeError("baseline_mode must be a boolean")
-
-        self._baseline_mode = baseline_mode
+        super().__init__(baseline_mode=baseline_mode)
         self.verbose = verbose
         self._scaler = None
         self._estimator = None
@@ -60,20 +42,8 @@ class Model:
         self._dataset = None
 
     @property
-    def model(self) -> Pipeline:
-        return self._model
-
-    @property
-    def preprocessor(self) -> LCSPreprocessor:
-        return self._preprocessor
-
-    @property
-    def baseline_mode(self) -> bool:
-        return self._baseline_mode
-
-    @property
     def dataset(self) -> Dataset:
-        if not hasattr(self, "_dataset"):
+        if not hasattr(self, "_dataset") or self._dataset is None:
             raise AttributeError(
                 "training and test set not defined. Please start by using self._prepare_train_test_set"
             )
@@ -152,11 +122,7 @@ class Model:
         return self
 
     def predict(self, X: pd.DataFrame) -> npt.ArrayLike:
-        X_processed = self.preprocessor.preprocess_data(X, verbose=False)
-        if self.baseline_mode:
-            y_pred = X_processed[BASELINE_MODEL_PREDICTION_COL].values
-        else:
-            y_pred = self.model.predict(X_processed)
+        y_pred = self._predict(X)
         return y_pred
 
     def evaluate(self, X: npt.ArrayLike = None, y_true: npt.ArrayLike = None) -> pd.DataFrame:
@@ -267,18 +233,7 @@ class Model:
 
     @classmethod
     def load_from_file(cls, model_filepath: Union[str, Path]) -> Pipeline:
-        model_filepath = Path(model_filepath)
-        if not model_filepath.is_file():
-            raise FileNotFoundError(model_filepath)
-        if model_filepath.suffix != ".pkl":
-            raise ValueError("Please give a path to pickle file")
-
-        model_ = open_file(model_filepath)
-
-        if not isinstance(model_, Pipeline):
-            raise ValueError(
-                "Incompatible model: please give a filepath to a sklearn pipeline object"
-            )
+        model_ = load_model_from_file(model_filepath)
 
         scaler = model_.steps[0][1]
         estimator = model_.steps[1][1]
