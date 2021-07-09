@@ -1,7 +1,7 @@
 import numpy.typing as npt
 from typing import Union
 
-from pathlib import Path
+import os
 
 import pandas as pd
 from loguru import logger
@@ -16,7 +16,7 @@ class Grader(BaseModel):
     _preprocessor = LCSPreprocessor(**PREPROCESSING_STEPS)
 
     def __init__(
-        self, model_filepath: Union[str, Path] = None, baseline_mode: bool = False
+        self, model_filepath: Union[str, os.PathLike] = None, baseline_mode: bool = False
     ) -> None:
         super().__init__(baseline_mode)
         if not baseline_mode:

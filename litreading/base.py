@@ -1,11 +1,17 @@
+"""This module implements a few classes and functions to be used for both the Grader and
+the Model class, including the dataclass Dataset, a BaseModel with functions shared by
+bosth Grader and Model, and a function to load a model from a file.
+"""
 import numpy.typing as npt
 from typing import Union
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pandas as pd
 
+from sklearn.base import BaseEstimator
 from sklearn.pipeline import Pipeline
 
 from litreading.config import BASELINE_MODEL_PREDICTION_COL, PREPROCESSING_STEPS
@@ -15,6 +21,8 @@ from litreading.utils.files import open_file
 
 @dataclass
 class Dataset:
+    """Dataclass to always have access to raw, preprocessed and split data."""
+
     X_train_raw: pd.DataFrame
     X_test_raw: pd.DataFrame
     y_train: pd.Series
@@ -44,7 +52,17 @@ class BaseModel:
     def baseline_mode(self) -> bool:
         return self._baseline_mode
 
-    def _predict(self, X: pd.DataFrame) -> npt.ArrayLike:
+    def _predict(self, X: npt.ArrayLike) -> npt.ArrayLike:
+        """Simple function to preprocess data and predict using either a specific sklearn
+        pipeline or the baseline
+
+        Args:
+            X (npt.ArrayLike): DataFrame or ndarray containing features for all
+                datapoints to be predicted
+
+        Returns:
+            npt.ArrayLike: y_pred
+        """
         X_processed = self.preprocessor.preprocess_data(X, verbose=False)
         if self.baseline_mode:
             y_pred = X_processed[BASELINE_MODEL_PREDICTION_COL].values
@@ -53,7 +71,25 @@ class BaseModel:
         return y_pred
 
 
-def load_model_from_file(model_filepath: Union[str, Path]) -> Pipeline:
+def load_model_from_file(
+    model_filepath: Union[str, os.PathLike], estimator_ok: bool = True
+) -> Union[Pipeline, BaseEstimator]:
+    """Load model from file and raise and error if the format is incorrect
+
+    Args:
+        model_filepath (Union[str, os.PathLike]): model filepath as str o
+        estimator_ok (bool): Make BaseEstimator a possible type fo type checking of the model.
+            Default to True.
+
+    Raises:
+        FileNotFoundError: The file does not exists
+        ValueError: The file is not a pickle file (suffix '.pkl')
+        ValueError: The model is not of the expected type. Expected type is Pipeline or
+            BaseEstimator if estimator_ok is True, only Pipeline otherwise
+
+    Returns:
+        Union[Pipeline, BaseEstimator]: sklearn model loaded from given pickle file
+    """
     model_filepath = Path(model_filepath)
     if not Path(model_filepath).is_file():
         raise FileNotFoundError(model_filepath)
@@ -62,7 +98,12 @@ def load_model_from_file(model_filepath: Union[str, Path]) -> Pipeline:
 
     model = open_file(model_filepath)
 
-    if not isinstance(model, Pipeline):
-        raise ValueError("Incompatible model: please give a filepath to a sklearn pipeline object")
+    expected_type = Pipeline
+    if estimator_ok is True:
+        expected_type = (Pipeline, BaseEstimator)
+    if not isinstance(model, expected_type):
+        raise ValueError(
+            f"Incompatible model: please give a filepath to a sklearn {expected_type} object"
+        )
 
     return model

@@ -10,11 +10,11 @@ import pandas as pd
 from loguru import logger
 
 
-def open_file(filepath: Union[str, Path], sep: Optional[str] = ";") -> Any:
+def open_file(filepath: Union[str, os.PathLike], sep: Optional[str] = ";") -> Any:
     """Open csv, pkl or joblib files from filepath
 
     Args:
-        filepath (Union[str, Path]): filepath to the file to open
+        filepath (Union[str, os.PathLike]): filepath to the file to open
         sep (Optional[str], optional): sep in csv if need be. Defaults to ";".
 
     Raises:
@@ -45,7 +45,7 @@ def open_file(filepath: Union[str, Path], sep: Optional[str] = ";") -> Any:
 
 def save_to_file(
     data: Any,
-    filepath: Union[str, Path],
+    filepath: Union[str, os.PathLike],
     version: bool = False,
     version_dt_format: str = "%Y%m%d_%H%M",
     overwrite: bool = False,
@@ -56,7 +56,7 @@ def save_to_file(
 
     Args:
         data (Any): [description]
-        filepath (Union[str, Path]): [description]
+        filepath (Union[str, os.PathLike]): [description]
         version (bool, optional): [description]. Defaults to False.
         version_dt_format (str, optional): [description]. Defaults to "%Y%m%d_%H%M".
         overwrite (bool, optional): [description]. Defaults to False.

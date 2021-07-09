@@ -2,7 +2,7 @@ import numpy.typing as npt
 from typing import Any, Dict, List, Literal, Union
 
 import itertools
-from pathlib import Path
+import os
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -232,7 +232,7 @@ class Model(BaseModel):
         raise NotImplementedError
 
     @classmethod
-    def load_from_file(cls, model_filepath: Union[str, Path]) -> Pipeline:
+    def load_from_file(cls, model_filepath: Union[str, os.PathLike]) -> Pipeline:
         model_ = load_model_from_file(model_filepath)
 
         scaler = model_.steps[0][1]
@@ -243,6 +243,6 @@ class Model(BaseModel):
         return model
 
     def save_model(
-        self, filepath: Union[str, Path], version: bool = True, overwrite: bool = False
+        self, filepath: Union[str, os.PathLike], version: bool = True, overwrite: bool = False
     ) -> None:
         save_to_file(self.model, filepath, version=version, overwrite=overwrite, makedirs=True)
