@@ -52,21 +52,26 @@ def save_to_file(
     makedirs: bool = False,
     sep: Optional[str] = ";",
 ) -> None:
-    """Save to csv, pkl or joblib files
+    """Save to csv, pkl or joblib files.
 
     Args:
-        data (Any): [description]
-        filepath (Union[str, os.PathLike]): [description]
-        version (bool, optional): [description]. Defaults to False.
-        version_dt_format (str, optional): [description]. Defaults to "%Y%m%d_%H%M".
-        overwrite (bool, optional): [description]. Defaults to False.
-        makedirs (bool, optional): [description]. Defaults to False.
-        sep (Optional[str], optional): [description]. Defaults to ";".
+        data (Any): data to be saved.
+        filepath (Union[str, os.PathLike]): filepath for the data.
+        version (bool, optional): Whether to version the filepath by date using version_dt_format.
+            Defaults to False.
+        version_dt_format (str, optional): date format to use for date versioning of files.
+            Defaults to "%Y%m%d_%H%M".
+        overwrite (bool, optional): If the files already exists, whether to replace it or to leave
+            it as is. If the file exists and overwrite exists, an FileExistsError is raised.
+            Defaults to False.
+        makedirs (bool, optional): Whether to create non-existing intermediate directories.
+            Defaults to False.
+        sep (Optional[str], optional): for csv files, columns separator. Defaults to ";".
 
     Raises:
-        NotADirectoryError: [description]
-        FileExistsError: [description]
-        NotImplementedError: [description]
+        NotADirectoryError: The filepath parent directory does not exist and makedirs is False
+        FileExistsError: The filepath already exists and overwrite is False
+        NotImplementedError: The suffix of the file is not one of '.csv', '.pkl', '.joblib'.
     """
     filepath = Path(filepath)
     dirpath = filepath.parent
@@ -77,23 +82,23 @@ def save_to_file(
         else:
             raise NotADirectoryError(dirpath)
 
+    if version:
+        timestamp = datetime.now().strftime(version_dt_format)
+        filename = filepath.stem + f"_{timestamp}" + suffix
+        filepath = dirpath / filename
+
     if filepath.exists():
         if overwrite:
             os.remove(filepath)
         else:
             raise FileExistsError(filepath)
 
-    if version:
-        timestamp = datetime.now().strftime(version_dt_format)
-        filename = filepath.stem + f"_{timestamp}" + suffix
-        filepath = dirpath / filename
-
     if suffix == ".csv":
         data.to_csv(filepath, index=False, sep=sep, encoding="utf-8")
     elif suffix == ".pkl":
         with open(filepath, "wb") as f:
             pickle.dump(data, f)
-    elif suffix == "joblib":
+    elif suffix == ".joblib":
         joblib.dump(data, filepath, compress=1)
     else:
         raise NotImplementedError(f"File type not handled: {suffix}")

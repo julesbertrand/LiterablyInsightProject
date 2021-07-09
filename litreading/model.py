@@ -233,7 +233,7 @@ class Model(BaseModel):
 
     @classmethod
     def load_from_file(cls, model_filepath: Union[str, os.PathLike]) -> Pipeline:
-        model_ = load_model_from_file(model_filepath)
+        model_ = load_model_from_file(model_filepath, estimator_ok=False)
 
         scaler = model_.steps[0][1]
         estimator = model_.steps[1][1]
