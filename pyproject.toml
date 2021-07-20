@@ -5,5 +5,5 @@ target-version = ['py38']
 [tool.isort]
 profile = "black"
 known_typing = ["typing", "numpy.typing"]
-known_sklearn = ["sklearn"]
+known_sklearn = ["sklearn", "xgboost"]
 sections = ["FUTURE", "TYPING", "STDLIB", "THIRDPARTY", "SKLEARN", "FIRSTPARTY", "LOCALFOLDER"]
