@@ -6,6 +6,9 @@ import os
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import plotly.figure_factory as ff
+import plotly.graph_objects as go
+import seaborn as sns
 from loguru import logger
 
 from sklearn import base
@@ -18,7 +21,11 @@ from litreading.config import HUMAN_WCPM_COL, PREPROCESSING_STEPS, SEED
 from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.evaluation import compute_evaluation_report
 from litreading.utils.files import save_to_file
-from litreading.utils.visualization import feature_importance, plot_grid_search
+from litreading.utils.visualization import (
+    plot_actual_vs_pred_scatter,
+    plot_feature_importance,
+    plot_grid_search,
+)
 
 
 class Model(BaseModel):
@@ -91,11 +98,7 @@ class Model(BaseModel):
         else:
             raise TypeError("scaler must be either an str or a sklearn.base.BaseEstimator.")
 
-    def prepare_train_test_set(
-        self,
-        dataset: pd.DataFrame,
-        test_set_size: float = 0.2,
-    ) -> None:
+    def prepare_train_test_set(self, dataset: pd.DataFrame, test_set_size: float = 0.2) -> None:
         self._dataset = Dataset(
             *train_test_split(
                 dataset.drop(columns=[HUMAN_WCPM_COL]),
@@ -104,7 +107,6 @@ class Model(BaseModel):
                 random_state=SEED,
             )
         )
-        # self._test_idx = self.dataset.X_test_raw.index
 
     def fit(self):
         self._dataset.X_train = self.preprocessor.preprocess_data(
@@ -216,20 +218,57 @@ class Model(BaseModel):
         fig = plot_grid_search(cv_results, x=x, y=y, hue=hue, x_log_scale=x_log_scale)
         return fig
 
-    def plot_feature_importance(self, threshold: float = 0.005):
-        fig = feature_importance(
-            self.model["estimator"], self.dataset.X_train.columns, threshold=threshold
+    def plot_feature_importance(self, top_n: int = 10, print_table: bool = True):
+        print(self.model["estimator"].__dict__)
+        fig, _ = plot_feature_importance(
+            self.model["estimator"],
+            self.dataset.X_train,
+            self.dataset.y_train,
+            top_n=top_n,
+            print_table=print_table,
         )
         return fig
 
-    def plot_scatter(self):
-        raise NotImplementedError
+    def plot_scatter(self, X: npt.ArrayLike = None, y_true: npt.ArrayLike = None) -> go.Figure:
+        if y_true is None:
+            y_true = self.dataset.y_test
+        if X is None:
+            X = self.dataset.X_test_raw
+
+        fig = plot_actual_vs_pred_scatter(y_true, self.predict(X))
+
+        return fig
 
     def plot_wcpm_distribution(self):
-        raise NotImplementedError
+        fig = ff.create_distplot(
+            [self.dataset.y_train, self.dataset.y_test], ["train_set", "test_set"], bin_size=5
+        )
+        return fig
 
-    def plot_train_test_feature_distributions(self):
-        raise NotImplementedError
+    def plot_feature_distribution(self, preprocess: bool = True):
+        if self.dataset.X_train is None and preprocess is not True:
+            raise AttributeError(
+                "Please start by preprocessing your raw data: \
+either train a model or pass 'preprocess'=True"
+            )
+
+        if preprocess is True:
+            _X_train = self._preprocessor.preprocess_data(self.dataset.X_train_raw, verbose=False)
+            _X_test = self._preprocessor.preprocess_data(self.dataset.X_test_raw, verbose=False)
+        else:
+            _X_train = self.dataset.X_train.copy()
+            _X_test = self.dataset.X_test.copy()
+
+        _X_train["set"] = "train_set"
+        _X_test["set"] = "test_set"
+        _X = pd.concat([_X_train, _X_test])
+
+        fig = sns.PairGrid(_X, hue="set", height=1)
+        fig.map_upper(sns.scatterplot)
+        fig.map_lower(sns.kdeplot, fill=True)
+        fig.map_diag(sns.histplot, kde=True, common_norm=False)
+
+        return fig
 
     @classmethod
     def load_from_file(cls, model_filepath: Union[str, os.PathLike]) -> Pipeline:
@@ -245,4 +284,7 @@ class Model(BaseModel):
     def save_model(
         self, filepath: Union[str, os.PathLike], version: bool = True, overwrite: bool = False
     ) -> None:
+        if self.baseline_mode is True:
+            raise ValueError("Cannot save baseline model as pickle file.")
+
         save_to_file(self.model, filepath, version=version, overwrite=overwrite, makedirs=True)

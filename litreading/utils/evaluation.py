@@ -1,5 +1,5 @@
 import numpy.typing as npt
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -36,7 +36,9 @@ def compute_evaluation_report(
     return metrics_df
 
 
-def get_evaluation_metrics(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> Dict[str, Any]:
+def get_evaluation_metrics(
+    y_true: npt.ArrayLike, y_pred: npt.ArrayLike, decimals: Optional[int] = None
+) -> Dict[str, Any]:
     """Compute metrics for a given y_true and y_pred
 
     Args:
@@ -53,6 +55,9 @@ def get_evaluation_metrics(y_true: npt.ArrayLike, y_pred: npt.ArrayLike) -> Dict
         "RMSE": np.sqrt(metrics.mean_squared_error(y_true, y_pred)),
         "R2": metrics.r2_score(y_true, y_pred),
     }
+
+    if decimals is not None:
+        eval_metrics = {k: round(v, decimals) for k, v in eval_metrics.items()}
     return eval_metrics
 
 

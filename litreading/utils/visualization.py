@@ -1,37 +1,22 @@
-from typing import Any, Dict, List
+import numpy.typing as npt
+from typing import Any, Dict, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import seaborn as sns
 
 from sklearn.base import BaseEstimator
+
+from litreading.utils.evaluation import get_evaluation_metrics
 
 COLOR_PALETTE = "Set2"
 plt.style.use("seaborn-darkgrid")
 
 
-def plot_wcpm_distribution(stats, x: str, stat: str = "count", binwidth: float = 0.01):
-    """Plot distribution of stats[stat] from x in bins of bin_width
-
-    Args:
-        stats ([type]): [description]
-        x (str): [description]
-        stat (str, optional): [description]. Defaults to "count".
-        binwidth (float, optional): [description]. Defaults to 0.01.
-    """
-    fig, ax = plt.subplots(1, 1, figsize=(16, 6))
-    sns.histplot(ax=ax, data=stats, x=x, stat=stat, binwidth=binwidth)
-    ax.set_title("Distribution of errors", fontsize=20, fontweight="bold")
-    ax.set_xlabel(x, fontsize=16)
-    if "%" in x:
-        ax.xaxis.set_major_formatter(mtick.PercentFormatter(1.0))
-    ax.set_ylabel(stat, fontsize=16)
-    plt.show()
-
-
-def plot_wcpm_scatter(stats, x: str, y: str):
+def plot_wcpm_scatter(stats, x: str, y: str) -> plt.Figure:
     """Scatter plot of x and y in stats to be choosen by user
 
     Args:
@@ -52,36 +37,68 @@ def plot_wcpm_scatter(stats, x: str, y: str):
     return fig
 
 
-def feature_importance(
-    estimator: BaseEstimator, feature_names: List[str], threshold: float = 0.001
-) -> plt.Figure:
-    """Compute and plot feature importances for tree based estimators
+def plot_feature_importance(
+    estimator: BaseEstimator,
+    X_train: pd.DataFrame,
+    y_train: Optional[pd.DataFrame] = None,
+    top_n: int = 10,
+    figsize: Tuple[int, int] = (8, 8),
+    plot_error_bars: bool = True,
+    print_table: bool = True,
+) -> Tuple[plt.Figure, pd.DataFrame]:
+    """plot feature importances of a tree-based sklearn estimator
 
     Args:
-        estimator (BaseEstimator): [description]
-        feature_names (List[str]): [description]
-        threshold (float, optional): [description]. Defaults to 0.001.
+        estimator (BaseEstimator): sklearn-based estiamtor
+        X_train (pd.DataFrame): training set features
+        y_train (Optional[pd.DataFrame], optional): training set target values. Defaults to None.
+        top_n (int, optional): top n feature importances to plot. Defaults to 10.
+        figsize (Tuple[int, int], optional): Defaults to (8, 8).
+        plot_error_bars (bool, optional): whether to plot error bars (std). Default to True.
+        print_table (bool, optional): whether to print the table after the plot. Defaults to False.
+
+    Raises:
+        AttributeError: When feature_importances_ does not exists for the estimator
 
     Returns:
-        plt.Figure: [description]
+        plt.Figure: feature importances plot
+        pd.DataFrame: df with feature name, importance, std based on trees
     """
-    std = np.std([tree.feature_importances_ for tree in estimator.estimators_], axis=0)
-    df = pd.DataFrame(
-        {"feature_name": feature_names, "importance": estimator.feature_importances_, "std": std}
+    if not hasattr(estimator, "feature_importances_"):
+        estimator.fit(X_train.values, y_train.values.ravel())
+        if not hasattr(estimator, "feature_importances_"):
+            raise AttributeError(
+                f"{estimator.__class__.__name__} does not have feature_importances_ attribute"
+            )
+
+    feat_imp = pd.DataFrame(
+        {
+            "feature": X_train.columns,
+            "importance": estimator.feature_importances_,
+            "std": np.std([tree.feature_importances_ for tree in estimator.estimators_], axis=0),
+        }
     )
-    df = df.query(f"importance > {threshold}")
-    df = df.sort_values(by="importance", ascending=False).reset_index(drop=True)
+    feat_imp = feat_imp.sort_values(by="importance", ascending=False).iloc[:top_n]
+    feat_imp = feat_imp.set_index("feature", drop=True)
+    feat_imp = feat_imp.sort_values(by="importance", ascending=True)
 
-    fig, ax = plt.subplots(1, 1, figsize=(8, max(8, 0.2 * df.shape[0])))
+    plot_kwargs = dict(
+        title=f"Features Importances for {estimator.__class__.__name__}", figsize=figsize
+    )
+    if plot_error_bars is True:
+        plot_kwargs["xerr"] = "std"
 
-    sns.barplot(data=df, x="importance", y="feature_name", color=sns.color_palette()[0])
-    for i, val in enumerate(df.importance):
-        ax.text(val + 0.01, i, s=f"{val:.3f}", ha="left", va="center")
+    fig = feat_imp.plot.barh(**plot_kwargs)
+    plt.xlabel("Feature Importance")
 
-    ax.set_title("Feature importance for current model", fontsize=16)
-    ax.set_xlim(0, max(df.importance) + 0.03)
+    if print_table is True:
+        from IPython.display import display
 
-    return fig
+        msg = f" Top {top_n} features in descending order of importance "
+        print(f"\n{msg:-^120}\n")
+        display(feat_imp.sort_values(by="importance", ascending=False))
+
+    return fig, feat_imp
 
 
 def plot_grid_search(
@@ -123,5 +140,38 @@ def plot_grid_search(
     if x_log_scale:
         ax.set_xscale("log")
     ax.grid("on")
+
+    return fig
+
+
+def plot_actual_vs_pred_scatter(
+    y_true: npt.ArrayLike, y_pred: npt.ArrayLike, title: str = "Actual v. Prediction"
+) -> go.Figure:
+    """Scatter plot of predictions on y-axis and ground truth on x-axis
+    with optimal line x=y.
+
+    Args:
+        y_true (npt.ArrayLike): [description]
+        y_pred (npt.ArrayLike): [description]
+        title (str): [description]. Default to "Actual v. Prediction".
+
+    Returns:
+        go.Figure: [description]
+    """
+    fig = go.Figure(
+        data=go.Scatter(
+            x=y_true,
+            y=y_pred,
+            mode="markers",
+            name="values",
+            marker=dict(color="#00828c", opacity=0.2),
+        )
+    )
+    fig.add_trace(go.Scatter(x=y_true, y=y_true, name="optimal"))
+
+    title += "\t\t\t" + " | ".join(
+        f"{k}: {v}" for k, v in get_evaluation_metrics(y_true, y_pred, decimals=3).items()
+    )
+    fig.update_layout(title=title, xaxis_title="Actual", yaxis_title="Prediction")
 
     return fig
