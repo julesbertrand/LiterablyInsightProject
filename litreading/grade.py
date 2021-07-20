@@ -7,7 +7,11 @@ import pandas as pd
 from loguru import logger
 
 from litreading.base import BaseModel, load_model_from_file
-from litreading.config import PREPROCESSING_STEPS
+from litreading.config import (
+    DEFAULT_MODEL_FILEPATHS,
+    DEFAULT_MODEL_TYPE,
+    PREPROCESSING_STEPS,
+)
 from litreading.preprocessor import LCSPreprocessor
 
 
@@ -26,3 +30,23 @@ class Grader(BaseModel):
     def grade(self, X: pd.DataFrame) -> npt.ArrayLike:
         y_pred = self._predict(X)
         return y_pred
+
+
+def grade_wcpm(X, model_type: str = None, baseline_mode: bool = False):
+    """shortcut to grade from a df
+
+    Args:
+        X ([type]): [description]
+        model_type (str, optional): [description]. Defaults to None.
+
+    Returns:
+        [type]: [description]
+    """
+    if model_type is None:
+        model_type = DEFAULT_MODEL_TYPE
+
+    grader = Grader(
+        model_filepath=DEFAULT_MODEL_FILEPATHS[model_type], baseline_mode=baseline_mode
+    )
+
+    return grader.grade(X)

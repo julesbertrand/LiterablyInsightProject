@@ -1,3 +1,9 @@
+import os
+
+""" General utils """
+ROOT_PATH = "."
+
+
 """ Column names in dataset """
 PROMPT_TEXT_COL = "prompt"
 ASR_TRANSCRIPT_COL = "asr_transcript"
@@ -16,3 +22,11 @@ PREPROCESSING_STEPS = {
 
 SEED = 12
 BASELINE_MODEL_PREDICTION_COL = "correct_words_pm"
+
+
+""" Default models"""
+DEFAULT_MODEL_TYPE = "XGB"
+DEFAULT_MODEL_FILEPATHS = {
+    "XGB": os.path.join(ROOT_PATH, "models/default_xgb.pkl"),
+    "test": os.path.join(ROOT_PATH, "models/model_test.pkl"),
+}

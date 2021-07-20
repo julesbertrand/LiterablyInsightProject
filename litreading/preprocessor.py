@@ -20,12 +20,18 @@ from litreading.utils.text import (
 
 
 class LCSPreprocessor:
+    prompt_col: str = PROMPT_TEXT_COL
+    asr_transcript_col: str = ASR_TRANSCRIPT_COL
+    human_transcript_col: str = HUMAN_TRANSCRIPT_COL
+    duration_col: str = DURATION_COL
+
     def __init__(
         self,
         asr_string_recomposition: bool = False,
         to_lowercase: bool = True,
         remove_punctuation: bool = True,
         convert_num2words: bool = True,
+        grade_mode: bool = False,
     ) -> None:
         """
         Args:
@@ -40,6 +46,7 @@ class LCSPreprocessor:
             "remove_punctuation": remove_punctuation,
             "convert_num2words": convert_num2words,
         }
+        self.grade_mode = grade_mode
         self.__steps_iter = None
         self._init_steps()
 
@@ -66,10 +73,6 @@ class LCSPreprocessor:
     def preprocess_data(
         self,
         df: pd.DataFrame,
-        prompt_col: str = PROMPT_TEXT_COL,
-        asr_transcript_col: str = ASR_TRANSCRIPT_COL,
-        human_transcript_col: str = HUMAN_TRANSCRIPT_COL,
-        duration_col: str = DURATION_COL,
         verbose: bool = True,
     ) -> pd.DataFrame:
         """Preprocess data and compute numerical features from text
@@ -90,14 +93,18 @@ class LCSPreprocessor:
 
         data_ = df.copy()
 
-        text_cols = [prompt_col, asr_transcript_col, human_transcript_col]
+        text_cols = [self.prompt_col, self.asr_transcript_col]
+        if self.grade_mode is True:
+            text_cols += self.human_transcript_col
+
+        print(data_)
         data_[text_cols] = self.preprocess_text(
             data_[text_cols], **self.preprocessing_steps, verbose=verbose
         )
 
         self._compute_and_log_step_msg(verbose)
         features = self.compute_numerical_features(
-            data_, prompt_col, asr_transcript_col, duration_col
+            data_, self.prompt_col, self.asr_transcript_col, self.duration_col
         )
         return features
 
