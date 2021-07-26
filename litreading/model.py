@@ -23,11 +23,9 @@ from litreading.config import (
     ASR_TRANSCRIPT_COL,
     HUMAN_TRANSCRIPT_COL,
     HUMAN_WCPM_COL,
-    PREPROCESSING_STEPS,
     SEED,
     SKLEARN_LOGLEVEL,
 )
-from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.evaluation import compute_evaluation_report
 from litreading.utils.files import save_to_file
 from litreading.utils.logging import StreamToLogger
@@ -39,9 +37,6 @@ from litreading.utils.visualization import (
 
 
 class Model(BaseModel):
-
-    _preprocessor = LCSPreprocessor(**PREPROCESSING_STEPS)
-
     def __init__(
         self,
         estimator: Union[str, BaseEstimator] = "default",

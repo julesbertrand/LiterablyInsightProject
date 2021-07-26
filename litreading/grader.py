@@ -7,18 +7,10 @@ import pandas as pd
 from loguru import logger
 
 from litreading.base import BaseModel, load_model_from_file
-from litreading.config import (
-    DEFAULT_MODEL_FILEPATHS,
-    DEFAULT_MODEL_TYPE,
-    PREPROCESSING_STEPS,
-)
-from litreading.preprocessor import LCSPreprocessor
+from litreading.config import DEFAULT_MODEL_FILEPATHS, DEFAULT_MODEL_TYPE
 
 
 class Grader(BaseModel):
-
-    _preprocessor = LCSPreprocessor(**PREPROCESSING_STEPS)
-
     def __init__(
         self, model_filepath: Union[str, os.PathLike] = None, baseline_mode: bool = False
     ) -> None:
