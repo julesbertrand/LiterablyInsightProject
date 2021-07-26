@@ -37,6 +37,11 @@ def grade_wcpm(X, model_type: str = None, baseline_mode: bool = False):
     if model_type is None:
         model_type = DEFAULT_MODEL_TYPE
 
+    if DEFAULT_MODEL_FILEPATHS.get(model_type) is None:
+        msg = "This model type is not supported. Please choose one among:\n"
+        msg += "\n".join(DEFAULT_MODEL_FILEPATHS.keys())
+        raise ValueError(msg)
+
     grader = Grader(
         model_filepath=DEFAULT_MODEL_FILEPATHS[model_type], baseline_mode=baseline_mode
     )
