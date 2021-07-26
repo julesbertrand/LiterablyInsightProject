@@ -130,19 +130,12 @@ class Model(BaseModel):
                 test_size=test_set_size,
                 random_state=SEED,
             ),
-            outliers_tolerance=self.outlier_tolerance,
         )
 
     def fit(self):
         self._dataset.X_train = self.preprocessor.preprocess_data(
             self.dataset.X_train_raw, verbose=self.verbose
         )
-        mask = (
-            pd.DataFrame(self.dataset.X_train).isna().any(axis=1)
-            | pd.Series(self.dataset.y_train).isna().any()
-        )  # HACK
-        self._dataset.X_train = self.dataset.X_train[~mask]
-        self._dataset.y_train = self.dataset.y_train[~mask]
 
         if not self.baseline_mode:
             logger.remove()
