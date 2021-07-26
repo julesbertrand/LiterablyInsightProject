@@ -11,6 +11,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from loguru import logger
 
@@ -81,6 +82,24 @@ class BaseModel:
             with contextlib.redirect_stdout(stream):
                 y_pred = self.model.predict(X_processed)
         return y_pred
+
+
+class OutlierDetector:
+    def __init__(self, epsilon: float) -> None:
+        if epsilon < 0:
+            raise ValueError("espilon tolerance must be a non-negative float.")
+        self.epsilon = epsilon
+
+    def detect(self, text_col_ref: npt.ArrayLike, text_col_alt: npt.ArrayLike) -> npt.ArrayLike:
+
+        lengths_ref = np.array(list(map(lambda x: len(str(x)), text_col_ref)))
+        lengths_alt = np.array(list(map(lambda x: len(str(x)), text_col_alt)))
+
+        outliers = (lengths_ref > (1 + self.epsilon) * lengths_alt) | (
+            lengths_alt > (1 + self.epsilon) * lengths_ref
+        )
+
+        return outliers
 
 
 def load_model_from_file(

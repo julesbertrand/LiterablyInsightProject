@@ -1,5 +1,5 @@
 import numpy.typing as npt
-from typing import Any, Dict, List, Literal, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import contextlib
 import itertools
@@ -18,8 +18,10 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
 
-from litreading.base import BaseModel, Dataset, load_model_from_file
+from litreading.base import BaseModel, Dataset, OutlierDetector, load_model_from_file
 from litreading.config import (
+    ASR_TRANSCRIPT_COL,
+    HUMAN_TRANSCRIPT_COL,
     HUMAN_WCPM_COL,
     PREPROCESSING_STEPS,
     SEED,
@@ -45,6 +47,8 @@ class Model(BaseModel):
         estimator: Union[str, BaseEstimator] = "default",
         scaler: Union[str, TransformerMixin] = "default",
         baseline_mode: bool = False,
+        outliers_tolerance: Optional[float] = 0.2,
+        # detect_outliers_in_test_set: bool = False,
         verbose: bool = False,
     ) -> None:
         super().__init__(baseline_mode=baseline_mode)
@@ -54,6 +58,7 @@ class Model(BaseModel):
         self._model = None
         self._build_model(scaler, estimator)
 
+        self.outliers_tolerance = outliers_tolerance
         self._dataset = None
 
     @property
@@ -72,7 +77,7 @@ class Model(BaseModel):
         if self.baseline_mode:
             msg = "Baseline mode -> Instanciating Baseline Model."
             msg += " Any scaler or estimator argument will be ignored."
-            msg += "\nThe prediction is the word correct count based on differ list."
+            msg += "\nThe prediction is the correct words count based on differ list."
             logger.warning(msg)
             self._model = None
         else:
@@ -107,13 +112,30 @@ class Model(BaseModel):
             raise TypeError("scaler must be either an str or a sklearn.base.BaseEstimator.")
 
     def prepare_train_test_set(self, dataset: pd.DataFrame, test_set_size: float = 0.2) -> None:
+
+        dataset_ = dataset.copy()
+
+        if self.outliers_tolerance is not None:
+            detector = OutlierDetector(epsilon=self.outliers_tolerance)
+            outliers = detector.detect(
+                dataset_[HUMAN_TRANSCRIPT_COL], dataset_[ASR_TRANSCRIPT_COL]
+            )
+
+            len_old = dataset_.shape[0]
+            dataset_ = dataset_[~outliers]
+
+            msg = f"\nRemoved {outliers.sum()} outliers from the dataset"
+            msg += f"\nDataset previous length: {len_old}. New length: {len_old - outliers.sum()}"
+            logger.warning(msg)
+
         self._dataset = Dataset(
             *train_test_split(
-                dataset.drop(columns=[HUMAN_WCPM_COL]),
-                dataset[HUMAN_WCPM_COL],
+                dataset_.drop(columns=[HUMAN_WCPM_COL]),
+                dataset_[HUMAN_WCPM_COL],
                 test_size=test_set_size,
                 random_state=SEED,
-            )
+            ),
+            outliers_tolerance=self.outlier_tolerance,
         )
 
     def fit(self):
