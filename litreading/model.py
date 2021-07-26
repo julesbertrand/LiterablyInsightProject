@@ -1,10 +1,8 @@
 import numpy.typing as npt
 from typing import Any, Dict, List, Literal, Optional, Union
 
-import contextlib
 import itertools
 import os
-import sys
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -24,11 +22,10 @@ from litreading.config import (
     HUMAN_TRANSCRIPT_COL,
     HUMAN_WCPM_COL,
     SEED,
-    SKLEARN_LOGLEVEL,
 )
 from litreading.utils.evaluation import compute_evaluation_report
 from litreading.utils.files import save_to_file
-from litreading.utils.logging import StreamToLogger
+from litreading.utils.logging import RedirectStdoutToLogger
 from litreading.utils.visualization import (
     plot_actual_vs_pred_scatter,
     plot_feature_importance,
@@ -138,10 +135,7 @@ class Model(BaseModel):
         )
 
         if not self.baseline_mode:
-            logger.remove()
-            logger.add(sys.__stdout__)
-            stream = StreamToLogger(level=SKLEARN_LOGLEVEL)
-            with contextlib.redirect_stdout(stream):
+            with RedirectStdoutToLogger(logger):
                 self.model.fit(self.dataset.X_train, self.dataset.y_train)
 
         return self
