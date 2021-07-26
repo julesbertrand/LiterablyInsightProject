@@ -218,8 +218,7 @@ class Model(BaseModel):
         fig = plot_grid_search(cv_results, x=x, y=y, hue=hue, x_log_scale=x_log_scale)
         return fig
 
-    def plot_feature_importance(self, top_n: int = 10, print_table: bool = True):
-        print(self.model["estimator"].__dict__)
+    def plot_feature_importance(self, top_n: int = 10, print_table: bool = True) -> plt.Figure:
         fig, _ = plot_feature_importance(
             self.model["estimator"],
             self.dataset.X_train,
@@ -239,13 +238,13 @@ class Model(BaseModel):
 
         return fig
 
-    def plot_wcpm_distribution(self):
+    def plot_wcpm_distribution(self) -> go.Figure:
         fig = ff.create_distplot(
             [self.dataset.y_train, self.dataset.y_test], ["train_set", "test_set"], bin_size=5
         )
         return fig
 
-    def plot_feature_distribution(self, preprocess: bool = True):
+    def plot_feature_distribution(self, preprocess: bool = True) -> plt.Figure:
         if self.dataset.X_train is None and preprocess is not True:
             raise AttributeError(
                 "Please start by preprocessing your raw data: \

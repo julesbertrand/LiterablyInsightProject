@@ -68,7 +68,7 @@ class LCSPreprocessor:
         step_no, step_name = next(self.__steps_iter)
         if verbose:
             msg = f"[{self.__class__.__name__}] (step {step_no + 1} of {len(self._steps)}): {step_name}"
-            print(msg)
+            logger.info(msg)
 
     def preprocess_data(
         self,
@@ -97,7 +97,6 @@ class LCSPreprocessor:
         if self.grade_mode is True:
             text_cols += self.human_transcript_col
 
-        print(data_)
         data_[text_cols] = self.preprocess_text(
             data_[text_cols], **self.preprocessing_steps, verbose=verbose
         )
