@@ -87,7 +87,7 @@ class BaseModel:
             stream = StreamToLogger(level=SKLEARN_LOGLEVEL)
             with contextlib.redirect_stdout(stream):
                 y_pred = self.model.predict(X_processed)
-        return y_pred
+        return X_processed, y_pred
 
 
 class OutlierDetector:

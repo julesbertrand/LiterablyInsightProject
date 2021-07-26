@@ -71,7 +71,7 @@ class Model(BaseModel):
     ) -> None:
         if self.baseline_mode:
             msg = "Baseline mode -> Instanciating Baseline Model."
-            msg += " Any scaler or estimator argument will be ignored."
+            msg += "\nAny scaler or estimator argument will be ignored."
             msg += "\nThe prediction is the correct words count based on differ list."
             logger.warning(msg)
             self._model = None
@@ -90,7 +90,7 @@ class Model(BaseModel):
         if isinstance(estimator, str):
             raise NotImplementedError
         if isinstance(estimator, BaseEstimator):
-            if base.is_classifier(estimator):
+            if not base.is_regressor(estimator):
                 raise TypeError("estimator must be a sklearn-like regressor")
             self._estimator = estimator
         else:
@@ -147,7 +147,7 @@ class Model(BaseModel):
         return self
 
     def predict(self, X: pd.DataFrame) -> npt.ArrayLike:
-        y_pred = self._predict(X)
+        _, y_pred = self._predict(X)
         return y_pred
 
     def evaluate(self, X: npt.ArrayLike = None, y_true: npt.ArrayLike = None) -> pd.DataFrame:

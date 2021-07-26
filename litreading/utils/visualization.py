@@ -95,7 +95,7 @@ def plot_feature_importance(
         from IPython.display import display
 
         msg = f" Top {top_n} features in descending order of importance "
-        print(f"\n{msg:-^120}\n")
+        print(f"\n{msg:-^100}\n")
         display(feat_imp.sort_values(by="importance", ascending=False))
 
     return fig, feat_imp

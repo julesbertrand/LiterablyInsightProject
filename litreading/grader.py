@@ -19,8 +19,10 @@ class Grader(BaseModel):
             self._model = load_model_from_file(model_filepath)
             logger.info(f"Model loaded from {model_filepath}: {self._model}")
 
-    def grade(self, X: pd.DataFrame) -> npt.ArrayLike:
-        y_pred = self._predict(X)
+    def grade(self, X: pd.DataFrame, return_processed_data: bool = False) -> npt.ArrayLike:
+        X_processed, y_pred = self._predict(X)
+        if return_processed_data:
+            return X_processed, y_pred
         return y_pred
 
 
