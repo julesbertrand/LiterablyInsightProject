@@ -3,8 +3,11 @@
 This is a consulting project done as part of Insight Artificial Intelligence Fellowship.
 
 ![GitHub](https://img.shields.io/github/license/julesbertrand/litreading-insight-project)
-[![Travis (.com)](https://img.shields.io/travis/com/julesbertrand/litreading-insight-project?label=TravisCI)](https://travis-ci.com/github/julesbertrand/litreading-insight-project)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://pypi.org/project/black/)
+![CI](https://github.com/julesbertrand/litreading-insight-project/actions/workflows/ci.yml/badge.svg)
+[![codecov](https://codecov.io/gh/julesbertrand/litreading-insight-project/branch/feature%2Fcodecov/graph/badge.svg?token=ULW5SHSJSC)](https://codecov.io/gh/julesbertrand/litreading-insight-project)
+
+
 
 ## Background
 We are trying to predict the true number of words correct spoken by a student reading out loud per minute (Word Correct Per Minute, WCPM), using a speech recognition-generated transcript of the student reading out loud and the original passage that the student is supposed to read.
