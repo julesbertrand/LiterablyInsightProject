@@ -38,6 +38,12 @@ class Dataset:
     y_test: pd.Series
     X_train: pd.DataFrame = field(init=False, default=None)
     X_test: pd.DataFrame = field(init=False, default=None)
+    train_test_ratio: float = field(init=False)
+
+    def __post_init__(self):
+        self.train_test_ratio = self.y_train.shape[0] / (
+            self.y_train.shape[0] + self.y_test.shape[0]
+        )
 
 
 class BaseModel:

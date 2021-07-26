@@ -21,7 +21,7 @@ PREPROCESSING_STEPS = {
     "asr_string_recomposition": False,
 }
 
-SEED = 12
+SEED = 100
 BASELINE_MODEL_PREDICTION_COL = "correct_words_pm"
 
 

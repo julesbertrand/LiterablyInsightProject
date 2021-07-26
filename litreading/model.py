@@ -265,6 +265,11 @@ class Model(BaseModel):
         fig = ff.create_distplot(
             [self.dataset.y_train, self.dataset.y_test], ["train_set", "test_set"], bin_size=5
         )
+
+        ratio = self.dataset.train_test_ratio * 100
+        ratio = f"{round(ratio, 1)}% / {round(100 - ratio, 1)}%"
+        fig.update_layout(title=f"Current dataset WCPM distribution. train / test: {ratio}")
+
         return fig
 
     def plot_feature_distribution(self, preprocess: bool = True) -> plt.Figure:
