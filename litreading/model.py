@@ -1,8 +1,10 @@
 import numpy.typing as npt
 from typing import Any, Dict, List, Literal, Union
 
+import contextlib
 import itertools
 import os
+import sys
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -17,10 +19,16 @@ from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
 
 from litreading.base import BaseModel, Dataset, load_model_from_file
-from litreading.config import HUMAN_WCPM_COL, PREPROCESSING_STEPS, SEED
+from litreading.config import (
+    HUMAN_WCPM_COL,
+    PREPROCESSING_STEPS,
+    SEED,
+    SKLEARN_LOGLEVEL,
+)
 from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.evaluation import compute_evaluation_report
 from litreading.utils.files import save_to_file
+from litreading.utils.logging import StreamToLogger
 from litreading.utils.visualization import (
     plot_actual_vs_pred_scatter,
     plot_feature_importance,
@@ -120,7 +128,12 @@ class Model(BaseModel):
         self._dataset.y_train = self.dataset.y_train[~mask]
 
         if not self.baseline_mode:
-            self.model.fit(self.dataset.X_train, self.dataset.y_train)
+            logger.remove()
+            logger.add(sys.__stdout__)
+            stream = StreamToLogger(level=SKLEARN_LOGLEVEL)
+            with contextlib.redirect_stdout(stream):
+                self.model.fit(self.dataset.X_train, self.dataset.y_train)
+
         return self
 
     def predict(self, X: pd.DataFrame) -> npt.ArrayLike:

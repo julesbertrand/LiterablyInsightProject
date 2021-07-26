@@ -5,18 +5,26 @@ bosth Grader and Model, and a function to load a model from a file.
 import numpy.typing as npt
 from typing import Union
 
+import contextlib
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pandas as pd
+from loguru import logger
 
 from sklearn.base import BaseEstimator
 from sklearn.pipeline import Pipeline
 
-from litreading.config import BASELINE_MODEL_PREDICTION_COL, PREPROCESSING_STEPS
+from litreading.config import (
+    BASELINE_MODEL_PREDICTION_COL,
+    PREPROCESSING_STEPS,
+    SKLEARN_LOGLEVEL,
+)
 from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.files import open_file
+from litreading.utils.logging import StreamToLogger
 
 
 @dataclass
@@ -67,7 +75,11 @@ class BaseModel:
         if self.baseline_mode:
             y_pred = X_processed[BASELINE_MODEL_PREDICTION_COL].values
         else:
-            y_pred = self.model.predict(X_processed)
+            logger.remove()
+            logger.add(sys.__stdout__)
+            stream = StreamToLogger(level=SKLEARN_LOGLEVEL)
+            with contextlib.redirect_stdout(stream):
+                y_pred = self.model.predict(X_processed)
         return y_pred
 
 

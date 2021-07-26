@@ -91,6 +91,9 @@ class LCSPreprocessor:
         """
         self.__steps_iter = iter(enumerate(self._steps))
 
+        if verbose is False:
+            logger.disable("litreading.preprocessor")
+
         data_ = df.copy()
 
         text_cols = [self.prompt_col, self.asr_transcript_col]
@@ -105,6 +108,10 @@ class LCSPreprocessor:
         features = self.compute_numerical_features(
             data_, self.prompt_col, self.asr_transcript_col, self.duration_col
         )
+
+        if verbose is False:
+            logger.disable("litreading.preprocessor")
+
         return features
 
     def preprocess_text(

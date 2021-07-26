@@ -2,6 +2,7 @@ import os
 
 """ General utils """
 ROOT_PATH = "."
+SKLEARN_LOGLEVEL = "INFO"
 
 
 """ Column names in dataset """
