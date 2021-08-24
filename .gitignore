@@ -1,5 +1,7 @@
 # Personal files
 data/
+models/
+grades/
 .vscode
 *.ipynb
 

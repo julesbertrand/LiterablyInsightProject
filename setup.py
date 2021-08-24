@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="litreading",
-    version="0.0.1",
+    version="0.2",
     author="Jules Bertrand",
     author_email="julesbertrand13@gmail.com",
     url="https://github.com/julesbertrand/litreading-insight-project.git",
