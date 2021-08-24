@@ -3,10 +3,11 @@ the Model class, including the dataclass Dataset, a BaseModel with functions sha
 bosth Grader and Model, and a function to load a model from a file.
 """
 import numpy.typing as npt
-from typing import Union
+from typing import Any, Dict, Type, Union
 
 import os
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 
 import numpy as np
@@ -14,12 +15,53 @@ import pandas as pd
 from loguru import logger
 
 from sklearn.base import BaseEstimator
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import Pipeline
+from xgboost import XGBRegressor
 
 from litreading.config import BASELINE_MODEL_PREDICTION_COL, PREPROCESSING_STEPS
 from litreading.preprocessor import LCSPreprocessor
 from litreading.utils.files import open_file
 from litreading.utils.logging import RedirectStdoutToLogger
+
+
+class EstimatorStringEnum(str, Enum):
+    randomforest = "randomforest"
+    linearregression = "linearregression"
+    xgboost = "xgboost"
+
+
+class EstimatorInit:
+    def __init__(
+        self, estimator_type: EstimatorStringEnum, parameters: Dict[str, Any] = None
+    ) -> None:
+        self.estimator_cls = self._parse_estimator(estimator_type)
+        self.parameters = parameters if parameters is not None else {}
+
+    @staticmethod
+    def _parse_estimator(estimator_type: EstimatorStringEnum) -> Type[BaseEstimator]:
+        if estimator_type is None:
+            return None
+
+        if not isinstance(estimator_type, EstimatorStringEnum):
+            raise TypeError(f"Must choose from {EstimatorStringEnum.__members__.keys()}")
+
+        if estimator_type is EstimatorStringEnum.randomforest:
+            estimator_cls = RandomForestRegressor
+        elif estimator_type is EstimatorStringEnum.linearregression:
+            estimator_cls = LinearRegression
+        elif estimator_type is EstimatorStringEnum.xgboost:
+            estimator_cls = XGBRegressor
+        else:
+            raise NotImplementedError(f"This estimator is not available: {estimator_type}")
+
+        return estimator_cls
+
+    def instanciate(self) -> BaseEstimator:
+        if self.estimator_cls is None:
+            return None
+        return self.estimator_cls(**self.parameters)
 
 
 @dataclass

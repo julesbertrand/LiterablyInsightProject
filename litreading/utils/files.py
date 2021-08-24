@@ -76,6 +76,7 @@ def save_to_file(
     filepath = Path(filepath)
     dirpath = filepath.parent
     suffix = filepath.suffix
+
     if not dirpath.exists():
         if makedirs:
             dirpath.mkdir(parents=True)
@@ -104,3 +105,5 @@ def save_to_file(
         raise NotImplementedError(f"File type not handled: {suffix}")
 
     logger.debug(f"Data saved to {filepath}")
+
+    return filepath

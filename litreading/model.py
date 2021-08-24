@@ -16,9 +16,17 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
 
-from litreading.base import BaseModel, Dataset, OutlierDetector, load_model_from_file
+from litreading.base import (
+    BaseModel,
+    Dataset,
+    EstimatorInit,
+    EstimatorStringEnum,
+    OutlierDetector,
+    load_model_from_file,
+)
 from litreading.config import (
     ASR_TRANSCRIPT_COL,
+    DEFAULT_PARAMS,
     HUMAN_TRANSCRIPT_COL,
     HUMAN_WCPM_COL,
     SEED,
@@ -83,13 +91,21 @@ class Model(BaseModel):
                 verbose=self.verbose,
             )
 
-    def _check_estimator(self, estimator: Union[str, BaseEstimator]) -> None:
-        if isinstance(estimator, str):
-            raise NotImplementedError
+    def _check_estimator(self, estimator: Union[EstimatorStringEnum, BaseEstimator]) -> None:
         if isinstance(estimator, BaseEstimator):
             if not base.is_regressor(estimator):
                 raise TypeError("estimator must be a sklearn-like regressor")
             self._estimator = estimator
+        elif isinstance(estimator, (str, EstimatorStringEnum)):
+            if isinstance(estimator, str):
+                if estimator not in EstimatorStringEnum.__members__:
+                    raise ValueError(
+                        f"When estimator is a str, must be one of {list(EstimatorStringEnum.__members__.keys())}"
+                    )
+                estimator = EstimatorStringEnum[estimator]
+            self._estimator = EstimatorInit(
+                estimator, parameters=DEFAULT_PARAMS[estimator._name_]
+            ).instanciate()
         else:
             raise TypeError("estimator must be either an str or a sklearn.base.BaseEstimator.")
 
@@ -308,4 +324,9 @@ either train a model or pass 'preprocess'=True"
         if self.baseline_mode is True:
             raise ValueError("Cannot save baseline model as pickle file.")
 
-        save_to_file(self.model, filepath, version=version, overwrite=overwrite, makedirs=True)
+        filepath = save_to_file(
+            self.model, filepath, version=version, overwrite=overwrite, makedirs=True
+        )
+
+        if self.verbose is True:
+            logger.info(f"model saved to {filepath}")
