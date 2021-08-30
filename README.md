@@ -29,20 +29,35 @@ This is a python module that can accept an ASR-generated transcript, the origina
 
 ## Installation
 
-### Install with models
+### Install litreading package
+
+This will install litreading package including the model trainer and grader, and some model configs that work well, but no trained models.
+
+```
+pip install git+https://github.com/julesbertrand/litreading-insight-project
+```
+
+Please check the `litreading/config.py` file to avoid any issues, especially MODELS_PATH. Note that you will have to train models as first thing.
+
+> If you want to have access to already trained models that work well, you can either clone the repo (see below) or download the `models/`folders from the repo.
+
+### Installing litreading by cloning the repo
+
+This will install the code, the models, and some other dev files. It also allows you ti have acess to everything needed to contribute to the project.
+
 1. Clone the repo:
 ```
 git clone https://github.com/julesbertrand/litreading-insight-project
 cd ./litreading-insight-project
 ```
+
 2. update the config file
 Please go to your package directory and check if the paths variables are ok (especially MODELS_PATH).
-You can also modify the preprocessing steps you want to run by default on your data. In that case, you may want to retrain the model to be sure to have great results. Note that you can still decide what preprocessing steps you want to apply by specifying it when running the model.
+You can also modify the preprocessing steps you want to run by default on your data. In that case, you may want to retrain the model to be sure to have great results. This can modify features or make them incompatible with sklearn model.
 
 3. Install as package
-To make it accessible as a python package, Run in terminal / Bash
+To make it accessible as a python package, Run in terminal
 ```
-cd ./litreading-insight-project
 pip install .
 ```
 
@@ -58,16 +73,11 @@ pip install streamlit
 Then go to the directory and run app:
 ```
 cd ./litreading-insight-project
-streamlit run app.py
+streamlit run apps/app.py
 ```
 
-### Install without models
+Then, give a prompt, a interpretation and a scored duration, and it will give you a WCPM grade.
 
-This is not the preferred way of installing the package. In terminal run
-```
-pip install git+https://github.com/julesbertrand/litreading-insight-project
-```
-Please check the config file paths to avoid any issues, especially MODELS_PATH. Note that you will have to train models as first thing.
 
 ## Execution
 
@@ -85,18 +95,18 @@ Your data for prediction must be a pandas DataFrame with one columns for the ori
 Once your data is in the form of a DataFrame `df` with the right column headers, you can either call the function `grade_wcpm(df)` to grade with default params or instanciate `DataGrader(df)` to do preprocessing, feature computation and prediction step by step ith customized params.
 
 ```python
-from litreading.grade import grade_wcpm
+from litreading import grade_wcpm
 
 df = pd.read_csv('file_to_grade')
-grades = grade_wcpm(df)
+grades = grade_wcpm(df, model_type="default")
 ```
 
 ```python
-from litreading.grade import DataGrader
+from litreading import Grader
 
 df = pd.read_csv('file_to_grade')
-grader = DataGrader(df, model_type='XGB')
-grades = grader.grade_wcpm(df)
+grader = DataGrader(model_filepath='models/xgb_model.pkl')
+grades = grader.grade(df)
 ```
 
 Please refer to the [examples jupyter notebook](https://github.com/julesbertrand/litreading-insight-project/blob/master/tutorial_litgrade.ipynb) in the github repo for more details.
@@ -106,18 +116,20 @@ Please refer to the [examples jupyter notebook](https://github.com/julesbertrand
 To train a model, you will have to instanciate a Modeltrainer. You can either choose to retrain the same model with default params (already tuned for this problem for KNN, RF and XGBoost) or try a gridsearch for hyperparameters tuning.
 
 ```python
-from litreading.train import ModelTrainer
+from litreading import Model
 
 df = pd.read_csv('file_to_grade')
-trainer = ModelTrainer(df, model_type="XGB")
-trainer.prepare_train_test_set(remove_outliers=True,
-                               outliers_tol=.15,
-                               test_set_size=.2,
-                               inplace=True
-                              )
-trainer.train()
-trainer.evaluate_model()
-trainer.save_model(replace=False)
+trainer = Model(
+  estimator=LinearRegressor(),
+  scaler=StandardScaler(),
+  outliers_tolerance=.2,
+  baseline_mode=False,
+  verbose=True
+)
+trainer.prepare_train_test_set(df, test_size=.2)
+trainer.fit()
+trainer.evaluate()
+trainer.save_model(overwrite=False)
 ```
 
 Please refer to the [examples jupyter notebook](https://github.com/julesbertrand/litreading-insight-project/blob/master/tutorial_litreading.ipynb) in the github repo for more details.
@@ -153,40 +165,44 @@ A tutorial for this package can be found and downloaded in the form of a jupyter
 
 ```
 .
+├── .github
+│   └── workflows
+│       ├── ci.yml
+│       └── codecov.yml
+├── apps
+│   └── app.py
+├── bin
+│   └── install.sh
+├── data/
 ├── litreading
+│   ├── utils
+│   │   ├── __init__.py
+│   │   ├── evaluation.py
+│   │   ├── files.py
+│   │   ├── logging.py
+│   │   ├── text.py
+│   │   └── visualization.py
 │   ├── __init__.py
+│   ├── base.py
 │   ├── config.py
-│   ├── dataset.py
-│   ├── grade.py
-│   ├── train.py
-│   ├── utils.py
-│   └── models
-│       ├── StandardScaler.joblib
-│       ├── RF.joblib
-│       ├── XGB.joblib
-│       └── KNN.joblib
-├── tests
-│   ├── test_utils.py
-│   ├── test_dataset.py
-│   ├── test_grade.py
-│   ├── test_train.py
-│   └── test_data
-│       ├── test_data.csv
-│       ├── test_data_features.csv
-│       ├── test_data_preprocessed.csv
-│       ├── test_data_stats.csv
-│       ├── test_data_wcpm_estimations.csv
-│       └── test_differ_lists.csv
-├── resources
-│   ├── appheader.md
-│   ├── distribution_errors_xgb.png
-│   ├── model_pipeline_final.png
-│   └── scatter_xgb.png
+│   ├── grader.py
+│   ├── main.py
+│   ├── model.py
+│   └── preprocessor.py
+├── models/
+├── resources/
+├── tests/
+├── .flake8
 ├── .gitignore
-├── .travis.yml
+├── .pre-commit-config.yaml
 ├── LICENSE
+├── Makefile
+├── mypy.ini
+├── pyproject.toml
 ├── README.md
-├── app.py
+├── requirements_dev.in
+├── requirements_dev.txt
+├── requirements.in
 ├── requirements.txt
 ├── setup.py
 └── tutorial_litreading.ipynb
