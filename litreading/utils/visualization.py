@@ -87,8 +87,9 @@ def plot_feature_importance(
     )
     if plot_error_bars is True:
         plot_kwargs["xerr"] = "std"
-
-    fig = feat_imp.plot.barh(**plot_kwargs)
+        fig = feat_imp.plot.barh(**plot_kwargs)
+    else:
+        fig = feat_imp.drop(columns=["std"]).plot.barh(**plot_kwargs)
     plt.xlabel("Feature Importance")
 
     if print_table is True:

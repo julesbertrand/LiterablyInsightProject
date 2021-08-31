@@ -241,13 +241,16 @@ class ModelTrainer(BaseModel):
         fig = plot_grid_search(cv_results, x=x, y=y, hue=hue, x_log_scale=x_log_scale)
         return fig
 
-    def plot_feature_importance(self, top_n: int = 10, print_table: bool = True) -> plt.Figure:
+    def plot_feature_importance(
+        self, top_n: int = 10, print_table: bool = True, plot_error_bars: bool = False
+    ) -> plt.Figure:
         fig, _ = plot_feature_importance(
             self.model["estimator"],
             self.dataset.X_train,
             self.dataset.y_train,
             top_n=top_n,
             print_table=print_table,
+            plot_error_bars=plot_error_bars,
         )
         return fig
 
