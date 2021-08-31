@@ -16,14 +16,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.pipeline import Pipeline
 
-from litreading.base import (
-    BaseModel,
-    Dataset,
-    EstimatorInit,
-    EstimatorStringEnum,
-    OutlierDetector,
-    load_model_from_file,
-)
+from litreading.base import BaseModel, Dataset, OutlierDetector, load_model_from_file
 from litreading.config import (
     ASR_TRANSCRIPT_COL,
     DEFAULT_PARAMS,
@@ -31,6 +24,7 @@ from litreading.config import (
     HUMAN_WCPM_COL,
     SEED,
 )
+from litreading.utils.cli import EstimatorInit, ScalerInit
 from litreading.utils.evaluation import compute_evaluation_report
 from litreading.utils.files import save_to_file
 from litreading.utils.logging import RedirectStdoutToLogger
@@ -44,8 +38,8 @@ from litreading.utils.visualization import (
 class ModelTrainer(BaseModel):
     def __init__(
         self,
-        estimator: Union[str, BaseEstimator] = "default",
         scaler: Union[str, TransformerMixin] = "default",
+        estimator: Union[str, BaseEstimator] = "default",
         baseline_mode: bool = False,
         outliers_tolerance: Optional[float] = 0.2,
         # detect_outliers_in_test_set: bool = False,
@@ -81,8 +75,8 @@ class ModelTrainer(BaseModel):
             logger.warning(msg)
             self._model = None
         else:
-            self._check_estimator(estimator)
             self._check_scaler(scaler)
+            self._check_estimator(estimator)
             self._model = Pipeline(
                 [
                     ("scaler", self._scaler),
@@ -90,22 +84,18 @@ class ModelTrainer(BaseModel):
                 ],
                 verbose=self.verbose,
             )
+            if self.verbose:
+                logger.info(f"Model instanciated: {self.model}")
 
-    def _check_estimator(self, estimator: Union[EstimatorStringEnum, BaseEstimator]) -> None:
+    def _check_estimator(self, estimator: Union[str, BaseEstimator]) -> None:
         if isinstance(estimator, BaseEstimator):
             if not base.is_regressor(estimator):
                 raise TypeError("estimator must be a sklearn-like regressor")
             self._estimator = estimator
-        elif isinstance(estimator, (str, EstimatorStringEnum)):
-            if isinstance(estimator, str):
-                if estimator not in EstimatorStringEnum.__members__:
-                    raise ValueError(
-                        f"When estimator is a str, must be one of {list(EstimatorStringEnum.__members__.keys())}"
-                    )
-                estimator = EstimatorStringEnum[estimator]
-            self._estimator = EstimatorInit(
-                estimator, parameters=DEFAULT_PARAMS[estimator._name_]
-            ).instanciate()
+        elif isinstance(estimator, str):
+            self._estimator = EstimatorInit().instanciate(
+                estimator, parameters=DEFAULT_PARAMS.get(estimator)
+            )
         else:
             raise TypeError("estimator must be either an str or a sklearn.base.BaseEstimator.")
 
@@ -115,9 +105,9 @@ class ModelTrainer(BaseModel):
                 raise TypeError("scaler must be a sklearn-like classifier")
             self._scaler = scaler
         elif isinstance(scaler, str):
-            raise NotImplementedError
+            self._scaler = ScalerInit().instanciate(scaler, parameters=DEFAULT_PARAMS.get(scaler))
         else:
-            raise TypeError("scaler must be either an str or a sklearn.base.BaseEstimator.")
+            raise TypeError("scaler must be either an str or a sklearn.base.TransformerMixin.")
 
     def prepare_train_test_set(self, dataset: pd.DataFrame, test_set_size: float = 0.2) -> None:
 

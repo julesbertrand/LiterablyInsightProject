@@ -7,7 +7,7 @@ import pandas as pd
 from loguru import logger
 
 from litreading.base import BaseModel, load_model_from_file
-from litreading.config import DEFAULT_MODEL_FILEPATHS, DEFAULT_MODEL_TYPE
+from litreading.config import DEFAULT_MODEL_FILEPATHS
 
 
 class Grader(BaseModel):
@@ -17,7 +17,7 @@ class Grader(BaseModel):
         super().__init__(baseline_mode)
         if not baseline_mode:
             self._model = load_model_from_file(model_filepath)
-            logger.info(f"Model loaded from {model_filepath}: {self._model}")
+            logger.info(f"Model loaded from {model_filepath}: {self.model}")
 
     def grade(self, X: pd.DataFrame, return_processed_data: bool = False) -> npt.ArrayLike:
         X_processed, y_pred = self._predict(X)
@@ -37,7 +37,7 @@ def grade_wcpm(X, model_type: str = None, baseline_mode: bool = False):
         [type]: [description]
     """
     if model_type is None:
-        model_type = DEFAULT_MODEL_TYPE
+        model_type = "default"
 
     if DEFAULT_MODEL_FILEPATHS.get(model_type) is None:
         msg = "This model type is not supported. Please choose one among:\n"

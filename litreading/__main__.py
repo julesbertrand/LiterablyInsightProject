@@ -8,9 +8,7 @@ import pandas as pd
 import typer
 from loguru import logger
 
-from sklearn.preprocessing import StandardScaler
-
-from litreading.base import EstimatorInit, EstimatorStringEnum
+from litreading.config import DEFAULT_MODEL_SCALER
 from litreading.grader import Grader
 from litreading.trainer import ModelTrainer
 from litreading.utils.files import save_to_file
@@ -64,7 +62,7 @@ def grade(
 
 @app.command()
 def train(
-    estimator_type: Optional[EstimatorStringEnum] = typer.Argument(None),
+    estimator: str = typer.Argument(None),
     dataset_filepath: Path = typer.Argument(
         ...,
         exists=True,
@@ -89,12 +87,14 @@ def train(
     if parameters is not None:
         parameters = json.load(parameters)
 
-    estimator = EstimatorInit(estimator_type, parameters).instanciate()
     if estimator is None and not baseline_mode:
         raise ValueError("You must either use baseline mode or specify an estimator")
 
     m = ModelTrainer(
-        estimator=estimator, scaler=StandardScaler(), baseline_mode=baseline_mode, verbose=True
+        estimator=estimator,
+        scaler=DEFAULT_MODEL_SCALER(),
+        baseline_mode=baseline_mode,
+        verbose=True,
     )
 
     df = pd.read_csv(dataset_filepath)
@@ -104,7 +104,7 @@ def train(
     logger.success(f"\n{metrics}")
 
     if output_dirpath is not None:
-        m.save_model(output_dirpath / f"model_{estimator_type}.pkl")
+        m.save_model(output_dirpath / f"model_{estimator}.pkl")
 
 
 @app.command()

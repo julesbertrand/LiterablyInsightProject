@@ -1,5 +1,8 @@
 import os
 
+from sklearn.preprocessing import StandardScaler
+from xgboost.sklearn import XGBRegressor
+
 """ General utils """
 ROOT_PATH = "."
 
@@ -28,7 +31,8 @@ BASELINE_MODEL_PREDICTION_COL = "correct_words_pm"
 
 
 """ Default models"""
-DEFAULT_MODEL_TYPE = "xgboost"
+DEFAULT_MODEL_ESTIMATOR = XGBRegressor
+DEFAULT_MODEL_SCALER = StandardScaler
 DEFAULT_MODEL_FILEPATHS = {
     "xgboost": os.path.join(ROOT_PATH, "models/default_xgb.pkl"),
     "test": os.path.join(ROOT_PATH, "models/model_test.pkl"),
