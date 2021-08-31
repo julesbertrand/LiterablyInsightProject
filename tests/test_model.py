@@ -13,6 +13,8 @@ from litreading.trainer import ModelTrainer
         (StandardScaler(), LinearRegression(), False),
         (StandardScaler(), LinearRegression(), True),
         (None, None, True),
+        ("default", "default", False),
+        ("standard", "knn", False),
     ],
 )
 def test_model_init(scaler, estimator, baseline_mode):
@@ -38,3 +40,4 @@ def test_model_fit(scaler, estimator, baseline_mode):
     )
     m.prepare_train_test_set(test_dataset)
     m.fit()
+    m.evaluate()
