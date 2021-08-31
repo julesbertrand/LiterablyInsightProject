@@ -1,6 +1,6 @@
 """This module implements a few classes and functions to be used for both the Grader and
-the Model class, including the dataclass Dataset, a BaseModel with functions shared by
-bosth Grader and Model, and a function to load a model from a file.
+the ModelTrainer class, including the dataclass Dataset, a BaseModel with functions shared by
+bosth Grader and ModelTrainer, and a function to load a model from a file.
 """
 import numpy.typing as npt
 from typing import Any, Dict, Type, Union

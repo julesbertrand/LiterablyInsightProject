@@ -12,7 +12,7 @@ from sklearn.preprocessing import StandardScaler
 
 from litreading.base import EstimatorInit, EstimatorStringEnum
 from litreading.grader import Grader
-from litreading.model import Model
+from litreading.trainer import ModelTrainer
 from litreading.utils.files import save_to_file
 
 app = typer.Typer()
@@ -93,7 +93,7 @@ def train(
     if estimator is None and not baseline_mode:
         raise ValueError("You must either use baseline mode or specify an estimator")
 
-    m = Model(
+    m = ModelTrainer(
         estimator=estimator, scaler=StandardScaler(), baseline_mode=baseline_mode, verbose=True
     )
 

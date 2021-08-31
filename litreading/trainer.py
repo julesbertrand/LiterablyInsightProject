@@ -41,7 +41,7 @@ from litreading.utils.visualization import (
 )
 
 
-class Model(BaseModel):
+class ModelTrainer(BaseModel):
     def __init__(
         self,
         estimator: Union[str, BaseEstimator] = "default",
@@ -110,12 +110,12 @@ class Model(BaseModel):
             raise TypeError("estimator must be either an str or a sklearn.base.BaseEstimator.")
 
     def _check_scaler(self, scaler: Union[str, TransformerMixin]) -> None:
-        if isinstance(scaler, str):
-            raise NotImplementedError
         if isinstance(scaler, TransformerMixin):
             if not hasattr(scaler, "fit_transform"):
                 raise TypeError("scaler must be a sklearn-like classifier")
             self._scaler = scaler
+        elif isinstance(scaler, str):
+            raise NotImplementedError
         else:
             raise TypeError("scaler must be either an str or a sklearn.base.BaseEstimator.")
 
