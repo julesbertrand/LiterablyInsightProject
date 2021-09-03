@@ -24,6 +24,15 @@ class Grader(BaseModel):
             logger.info(f"Model loaded from {model_filepath}: {self.model}")
 
     def grade(self, X: pd.DataFrame, return_processed_data: bool = False) -> npt.ArrayLike:
+        """predict grades using BaseModel predict: will do raw data preprocessing + pipeline prediction
+
+        Args:
+            X (pd.DataFrame): [description]
+            return_processed_data (bool, optional): [description]. Defaults to False.
+
+        Returns:
+            npt.ArrayLike: [description]
+        """
         X_processed, y_pred = self._predict(X)
         if return_processed_data:
             return X_processed, y_pred

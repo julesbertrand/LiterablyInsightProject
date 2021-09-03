@@ -68,6 +68,12 @@ class ModelTrainer(BaseModel):
         scaler: Union[str, BaseEstimator],
         estimator: Union[str, TransformerMixin],
     ) -> None:
+        """build internal Pipeline object that will be fit
+
+        Args:
+            scaler (Union[str, BaseEstimator]): [description]
+            estimator (Union[str, TransformerMixin]): [description]
+        """
         if self.baseline_mode:
             msg = "Baseline mode -> Instanciating Baseline Model."
             msg += "\nAny scaler or estimator argument will be ignored."
@@ -88,6 +94,15 @@ class ModelTrainer(BaseModel):
                 logger.info(f"Model instanciated: {self.model}")
 
     def _check_estimator(self, estimator: Union[str, BaseEstimator]) -> None:
+        """check estimator format and raise appropriate errors
+
+        Args:
+            estimator (Union[str, BaseEstimator]): [description]
+
+        Raises:
+            TypeError: [description]
+            TypeError: [description]
+        """
         if isinstance(estimator, BaseEstimator):
             if not base.is_regressor(estimator):
                 raise TypeError("estimator must be a sklearn-like regressor")
@@ -100,6 +115,15 @@ class ModelTrainer(BaseModel):
             raise TypeError("estimator must be either an str or a sklearn.base.BaseEstimator.")
 
     def _check_scaler(self, scaler: Union[str, TransformerMixin]) -> None:
+        """check scaler format and raise appropriate errors
+
+        Args:
+            scaler (Union[str, TransformerMixin]): [description]
+
+        Raises:
+            TypeError: [description]
+            TypeError: [description]
+        """
         if isinstance(scaler, TransformerMixin):
             if not hasattr(scaler, "fit_transform"):
                 raise TypeError("scaler must be a sklearn-like classifier")
@@ -110,6 +134,13 @@ class ModelTrainer(BaseModel):
             raise TypeError("scaler must be either an str or a sklearn.base.TransformerMixin.")
 
     def prepare_train_test_set(self, dataset: pd.DataFrame, test_set_size: float = 0.2) -> None:
+        """Detect outliers if a threshold was defined at instanciation.
+        Init a Dataset instance with X_train, X_test, y_train, y_test
+
+        Args:
+            dataset (pd.DataFrame): [description]
+            test_set_size (float, optional): [description]. Defaults to 0.2.
+        """
 
         dataset_ = dataset.copy()
 
@@ -136,6 +167,12 @@ class ModelTrainer(BaseModel):
         )
 
     def fit(self):
+        """Preprocess training set and fit model Pipeline
+        Can only be called if self.prepare_train_test_set was called before once.
+
+        Returns:
+            [type]: [description]
+        """
         self._dataset.X_train = self.preprocessor.preprocess_data(
             self.dataset.X_train_raw, verbose=self.verbose
         )
@@ -164,8 +201,18 @@ class ModelTrainer(BaseModel):
 
     @staticmethod
     def __format_param_grid(
-        mode=Literal["scaler", "estimator"], param_grid: Dict[str, List[Any]] = None
+        mode: Literal["scaler", "estimator"], param_grid: Dict[str, List[Any]] = None
     ) -> Dict[str, List[Any]]:
+        """Format param grid for a pipeline object
+        by adding pipeline step name before each arg name
+
+        Args:
+            mode (Literal["scaler", "estimator"]): [description].
+            param_grid (Dict[str, List[Any]], optional): [description]. Defaults to None.
+
+        Returns:
+            Dict[str, List[Any]]: [description]
+        """
         param_grid = {}
         if param_grid is not None:
             param_grid = {f"{mode}__{k}": v for k, v in param_grid.items()}
@@ -180,6 +227,22 @@ class ModelTrainer(BaseModel):
         scoring_metric: str = "r2",
         set_best_model: bool = True,
     ) -> GridSearchCV:
+        """Init and fit a grid search. Built on top of sklearn GridSearchCV
+
+        Args:
+            param_grid_scaler (Optional[Dict[str, list]], optional): [description]. Defaults to None.
+            param_grid_estimator (Optional[Dict[str, list]], optional): [description]. Defaults to None.
+            cv (int, optional): [description]. Defaults to 5.
+            verbose (int, optional): [description]. Defaults to 5.
+            scoring_metric (str, optional): [description]. Defaults to "r2".
+            set_best_model (bool, optional): [description]. Defaults to True.
+
+        Raises:
+            ValueError: [description]
+
+        Returns:
+            GridSearchCV: [description]
+        """
         param_grid = {}
         param_grid.update(self.__format_param_grid(mode="scaler", param_grid=param_grid_scaler))
         param_grid.update(
@@ -241,12 +304,35 @@ class ModelTrainer(BaseModel):
         hue: Optional[str] = None,
         x_log_scale: bool = False,
     ) -> plt.Figure:
+        """Plot grid search results using seaborn
+
+        Args:
+            cv_results (dict): [description]
+            x (str): [description]
+            y (str, optional): [description]. Defaults to "mean_test_score".
+            hue (Optional[str], optional): [description]. Defaults to None.
+            x_log_scale (bool, optional): [description]. Defaults to False.
+
+        Returns:
+            plt.Figure: [description]
+        """
         fig = plot_grid_search(cv_results, x=x, y=y, hue=hue, x_log_scale=x_log_scale)
         return fig
 
     def plot_feature_importance(
         self, top_n: int = 10, print_table: bool = True, plot_error_bars: bool = False
     ) -> plt.Figure:
+        """For ensemble methods only, plot feature importance values as a graph
+        table also available with std errors
+
+        Args:
+            top_n (int, optional): [description]. Defaults to 10.
+            print_table (bool, optional): [description]. Defaults to True.
+            plot_error_bars (bool, optional): [description]. Defaults to False.
+
+        Returns:
+            plt.Figure: [description]
+        """
         fig, _ = plot_feature_importance(
             self.model["estimator"],
             self.dataset.X_train,
@@ -260,6 +346,15 @@ class ModelTrainer(BaseModel):
     def plot_scatter(
         self, X: Optional[npt.ArrayLike] = None, y_true: Optional[npt.ArrayLike] = None
     ) -> go.Figure:
+        """Scatter plot of prediction versus truth
+
+        Args:
+            X (Optional[npt.ArrayLike], optional): [description]. Defaults to None.
+            y_true (Optional[npt.ArrayLike], optional): [description]. Defaults to None.
+
+        Returns:
+            go.Figure: [description]
+        """
         if y_true is None:
             y_true = self.dataset.y_test
         if X is None:
@@ -270,6 +365,11 @@ class ModelTrainer(BaseModel):
         return fig
 
     def plot_wcpm_distribution(self) -> go.Figure:
+        """plot distribution of scpm (y) for train and test set
+
+        Returns:
+            go.Figure: [description]
+        """
         fig = ff.create_distplot(
             [self.dataset.y_train, self.dataset.y_test], ["train_set", "test_set"], bin_size=5
         )
@@ -281,6 +381,17 @@ class ModelTrainer(BaseModel):
         return fig
 
     def plot_feature_distribution(self, preprocess: bool = True) -> plt.Figure:
+        """plot feature distribution using scatter, kde and hist plots using seaborn
+
+        Args:
+            preprocess (bool, optional): [description]. Defaults to True.
+
+        Raises:
+            AttributeError: [description]
+
+        Returns:
+            plt.Figure: [description]
+        """
         if self.dataset.X_train is None and preprocess is not True:
             raise AttributeError(
                 "Please start by preprocessing your raw data: \
@@ -307,6 +418,14 @@ either train a model or pass 'preprocess'=True"
 
     @classmethod
     def load_from_file(cls, model_filepath: Union[str, os.PathLike]) -> Pipeline:
+        """class method to load a model from a file containing a Pipeline with a scaler and an estimator
+
+        Args:
+            model_filepath (Union[str, os.PathLike]): [description]
+
+        Returns:
+            Pipeline: [description]
+        """
         model_ = load_model_from_file(model_filepath, estimator_ok=False)
 
         scaler = model_.steps[0][1]
@@ -319,6 +438,16 @@ either train a model or pass 'preprocess'=True"
     def save_model(
         self, filepath: Union[str, os.PathLike], version: bool = True, overwrite: bool = False
     ) -> None:
+        """Save current model Pipeline to pkl
+
+        Args:
+            filepath (Union[str, os.PathLike]): [description]
+            version (bool, optional): [description]. Defaults to True.
+            overwrite (bool, optional): [description]. Defaults to False.
+
+        Raises:
+            ValueError: [description]
+        """
         if self.baseline_mode is True:
             raise ValueError("Cannot save baseline model as pickle file.")
 

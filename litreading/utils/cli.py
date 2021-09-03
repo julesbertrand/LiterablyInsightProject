@@ -24,7 +24,16 @@ class Instanciator:
         self.available_objects = available_objects
         self.name = "object" if object_type_name is None else object_type_name
 
-    def instanciate(self, object_name: str, parameters: Optional[Dict[str, Any]] = None):
+    def instanciate(self, object_name: str, parameters: Optional[Dict[str, Any]] = None) -> Any:
+        """instanciate object based on available objects and passed parameters
+
+        Args:
+            object_name (str): [description]
+            parameters (Optional[Dict[str, Any]], optional): [description]. Defaults to None.
+
+        Returns:
+            Any: The class given in avialable objects, instanciated with parameters
+        """
         input_cls = self._parse_input_cls(input_cls_name=object_name)
         parameters = {} if parameters is None else parameters
         return input_cls(**parameters)
