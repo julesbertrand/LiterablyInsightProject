@@ -1,5 +1,5 @@
 import numpy.typing as npt
-from typing import Union
+from typing import Optional, Union
 
 import os
 
@@ -12,10 +12,14 @@ from litreading.config import DEFAULT_MODEL_FILEPATHS
 
 class Grader(BaseModel):
     def __init__(
-        self, model_filepath: Union[str, os.PathLike] = None, baseline_mode: bool = False
+        self, model_filepath: Optional[Union[str, os.PathLike]] = None, baseline_mode: bool = False
     ) -> None:
         super().__init__(baseline_mode)
         if not baseline_mode:
+            if model_filepath is None:
+                raise ValueError(
+                    "Please provide a model_filepath when you're not using baseline mode."
+                )
             self._model = load_model_from_file(model_filepath)
             logger.info(f"Model loaded from {model_filepath}: {self.model}")
 

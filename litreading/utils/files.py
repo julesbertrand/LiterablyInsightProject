@@ -51,7 +51,7 @@ def save_to_file(
     overwrite: bool = False,
     makedirs: bool = False,
     sep: Optional[str] = ";",
-) -> None:
+) -> Path:
     """Save to csv, pkl or joblib files.
 
     Args:

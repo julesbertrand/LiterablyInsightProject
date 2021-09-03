@@ -150,7 +150,9 @@ class ModelTrainer(BaseModel):
         _, y_pred = self._predict(X)
         return y_pred
 
-    def evaluate(self, X: npt.ArrayLike = None, y_true: npt.ArrayLike = None) -> pd.DataFrame:
+    def evaluate(
+        self, X: Optional[npt.ArrayLike] = None, y_true: Optional[npt.ArrayLike] = None
+    ) -> pd.DataFrame:
         if X is None:
             X = self.dataset.X_test_raw
         if y_true is None:
@@ -164,21 +166,20 @@ class ModelTrainer(BaseModel):
     def __format_param_grid(
         mode=Literal["scaler", "estimator"], param_grid: Dict[str, List[Any]] = None
     ) -> Dict[str, List[Any]]:
+        param_grid = {}
         if param_grid is not None:
             param_grid = {f"{mode}__{k}": v for k, v in param_grid.items()}
-        else:
-            param_grid = {}
         return param_grid
 
     def grid_search(
         self,
-        param_grid_scaler: Dict[str, List[Any]] = None,
-        param_grid_estimator: Dict[str, List[Any]] = None,
+        param_grid_scaler: Optional[Dict[str, list]] = None,
+        param_grid_estimator: Optional[Dict[str, list]] = None,
         cv: int = 5,
         verbose: int = 5,
         scoring_metric: str = "r2",
         set_best_model: bool = True,
-    ):
+    ) -> GridSearchCV:
         param_grid = {}
         param_grid.update(self.__format_param_grid(mode="scaler", param_grid=param_grid_scaler))
         param_grid.update(
@@ -237,7 +238,7 @@ class ModelTrainer(BaseModel):
         cv_results: dict,
         x: str,
         y: str = "mean_test_score",
-        hue: str = None,
+        hue: Optional[str] = None,
         x_log_scale: bool = False,
     ) -> plt.Figure:
         fig = plot_grid_search(cv_results, x=x, y=y, hue=hue, x_log_scale=x_log_scale)
@@ -256,7 +257,9 @@ class ModelTrainer(BaseModel):
         )
         return fig
 
-    def plot_scatter(self, X: npt.ArrayLike = None, y_true: npt.ArrayLike = None) -> go.Figure:
+    def plot_scatter(
+        self, X: Optional[npt.ArrayLike] = None, y_true: Optional[npt.ArrayLike] = None
+    ) -> go.Figure:
         if y_true is None:
             y_true = self.dataset.y_test
         if X is None:
