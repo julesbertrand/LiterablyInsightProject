@@ -221,7 +221,9 @@ class ModelTrainer(BaseModel):
         self._dataset.X_train = self.preprocessor.preprocess_data(
             self.dataset.X_train_raw, verbose=verbose > 0
         )
-        grid_search.fit(self.dataset.X_train, self.dataset.y_train)
+
+        with RedirectStdoutToLogger(logger):
+            grid_search.fit(self.dataset.X_train, self.dataset.y_train)
 
         if set_best_model is True:
             self._model = grid_search.best_estimator_
