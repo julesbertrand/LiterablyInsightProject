@@ -22,6 +22,7 @@ from litreading.config import (
     DEFAULT_PARAMS,
     HUMAN_TRANSCRIPT_COL,
     HUMAN_WCPM_COL,
+    INLINE_VALIDATION_BEFORE_GS,
     SEED,
 )
 from litreading.utils.cli import EstimatorInit, ScalerInit
@@ -54,6 +55,7 @@ class ModelTrainer(BaseModel):
 
         self.outliers_tolerance = outliers_tolerance
         self._dataset = None
+        self.grid_search_ = None
 
     @property
     def dataset(self) -> Dataset:
@@ -211,11 +213,13 @@ class ModelTrainer(BaseModel):
             param_grid (Dict[str, List[Any]], optional): [description]. Defaults to None.
 
         Returns:
-            Dict[str, List[Any]]: [description]
+            Dict[str, List[Any]]: param grid formatted for a sklearn pipeline (step_name__param_name)
         """
-        param_grid = {}
-        if param_grid is not None:
-            param_grid = {f"{mode}__{k}": v for k, v in param_grid.items()}
+        if param_grid is None:
+            param_grid = {}
+
+        param_grid = {f"{mode}__{k}": v for k, v in param_grid.items()}
+
         return param_grid
 
     def grid_search(
@@ -260,20 +264,21 @@ class ModelTrainer(BaseModel):
         msg += f"\nMetric for evaluation: {scoring_metric}"
         logger.info(msg)
 
-        while True:
-            answer = input("\nContinue with these Cross-validation parameters ? (y/n)")
-            if answer not in ["y", "n"]:
-                print("Possible answers: 'y' or 'n'")
-                continue
-            if answer == "y":
-                break
-            logger.error("Please redefine inputs.")
-            return None
+        if INLINE_VALIDATION_BEFORE_GS:
+            while True:
+                answer = input("\nContinue with these Cross-validation parameters ? (y/n)")
+                if answer not in ["y", "n"]:
+                    print("Possible answers: 'y' or 'n'")
+                    continue
+                if answer == "y":
+                    break
+                logger.error("Please redefine inputs.")
+                return None
 
         verbose_model = self.model.verbose
         self._model.verbose = False
 
-        grid_search = GridSearchCV(
+        self.grid_search_ = GridSearchCV(
             estimator=self.model,
             param_grid=param_grid,
             scoring=scoring_metric,
@@ -287,14 +292,17 @@ class ModelTrainer(BaseModel):
         )
 
         with RedirectStdoutToLogger(logger):
-            grid_search.fit(self.dataset.X_train, self.dataset.y_train)
+            self.grid_search_.fit(self.dataset.X_train, self.dataset.y_train)
+
+        logger.info(f"Best params: {self.grid_search_.best_params_}")
 
         if set_best_model is True:
-            self._model = grid_search.best_estimator_
+            self._model = self.grid_search_.best_estimator_
+            logger.info(f"New model set after grid search: \n{self.model}")
 
         self._model.verbose = verbose_model
 
-        return grid_search
+        return self
 
     @staticmethod
     def plot_grid_search(

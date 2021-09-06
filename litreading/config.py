@@ -28,6 +28,7 @@ PREPROCESSING_STEPS = dict(
 
 SEED = 105
 BASELINE_MODEL_PREDICTION_COL = "correct_words_pm"
+INLINE_VALIDATION_BEFORE_GS = True
 
 
 """ Default models"""

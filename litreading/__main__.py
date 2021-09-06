@@ -108,13 +108,50 @@ def train(
 
 
 @app.command()
-def set_default_model():
-    pass
+def gridsearch(
+    estimator: str = typer.Argument(None),
+    dataset_filepath: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        writable=False,
+        readable=True,
+        resolve_path=True,
+    ),
+    parameters_grid: typer.FileText = typer.Argument(None),
+    cv: int = typer.Option(5),
+    output_dirpath: Optional[Path] = typer.Option(
+        None,
+        "-s",
+        file_okay=False,
+        dir_okay=True,
+        writable=True,
+        readable=False,
+        resolve_path=True,
+    ),
+):
+    if parameters_grid is not None:
+        parameters_grid = json.load(parameters_grid)
 
+    if estimator is None:
+        raise ValueError("You must either use baseline mode or specify an estimator")
 
-@app.command()
-def get_default_model():
-    pass
+    m = ModelTrainer(
+        estimator=estimator,
+        scaler=DEFAULT_MODEL_SCALER(),
+        baseline_mode=False,
+        verbose=True,
+    )
+
+    df = pd.read_csv(dataset_filepath)
+    m.prepare_train_test_set(df)
+    m = m.grid_search(param_grid_estimator=parameters_grid, cv=cv, set_best_model=True, verbose=1)
+    metrics = m.evaluate()
+    logger.success(f"\n{metrics}")
+
+    if output_dirpath is not None:
+        m.save_model(output_dirpath / f"model_gs_{estimator}.pkl")
 
 
 @app.callback()

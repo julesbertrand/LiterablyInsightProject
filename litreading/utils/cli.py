@@ -46,6 +46,7 @@ class Instanciator:
             raise TypeError(f"Please give a string as input. Current input: {input_cls_name}")
 
         input_cls = self.available_objects.get(input_cls_name)
+
         if input_cls is None:
             msg = f"This {self.name} is not available: {input_cls_name}."
             msg += f"Please choose among keys in \n{self.available_objects}"
