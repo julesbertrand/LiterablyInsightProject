@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional, Type
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler, Normalizer, StandardScaler
 from xgboost import XGBRegressor
 
 from litreading.config import DEFAULT_MODEL_ESTIMATOR, DEFAULT_MODEL_SCALER
@@ -16,7 +16,9 @@ AvailableEstimatorsCLI = dict(
     knn=KNeighborsRegressor,
 )
 
-AvailableScalersCLI = dict(default=DEFAULT_MODEL_SCALER, standard=StandardScaler)
+AvailableScalersCLI = dict(
+    default=DEFAULT_MODEL_SCALER, standard=StandardScaler, minmax=MinMaxScaler, normal=Normalizer
+)
 
 
 class Instanciator:
