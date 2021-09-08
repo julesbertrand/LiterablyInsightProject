@@ -72,11 +72,11 @@ def train(
         readable=True,
         resolve_path=True,
     ),
-    parameters: Optional[typer.FileText] = typer.Option(None),
+    parameters: Optional[typer.FileText] = typer.Option(None, "--params, -p"),
     baseline_mode: bool = typer.Option(False, "--baseline/", "-b/"),
     output_dirpath: Optional[Path] = typer.Option(
         None,
-        "-s",
+        "--output_dirpath, -s",
         file_okay=False,
         dir_okay=True,
         writable=True,
