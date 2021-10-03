@@ -1,4 +1,11 @@
-.literacy_score/utils.py
+# Personal files
+data/
+models/
+grades/
+.vscode
+*.ipynb
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

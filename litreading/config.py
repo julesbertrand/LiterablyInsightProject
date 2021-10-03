@@ -1,52 +1,42 @@
-""" This is a configuration file """
+import os
 
-"""Package paths - Please update before installation!"""
-# a path to a folder in which models are saved
-MODELS_PATH = "./litreading/models/"
+from sklearn.preprocessing import StandardScaler
+from xgboost.sklearn import XGBRegressor
 
-""" Preprocessing steps - Please update considering your preprocessing"""
-# preprocessing steps
-PREPROCESSING_STEPS = {
-    "lowercase": True,
-    "punctuation_free": True,
-    "convert_num2words": True,
-    "asr_string_recomposition": False,
-}
+### General utils ###
+ROOT_PATH = "."
 
-""" Models available and config - Please update carefully or it could break the code """
-# Available models for training and prediction
-AVAILABLE_MODEL_TYPES = ["Baseline", "RF", "XGB", "KNN"]
-# Default type of model used for predictions and training
-DEFAULT_MODEL_TYPE = "XGB"
-# Default model files for each model
-DEFAULT_MODEL_FILES = {
-    "RF": "RF.joblib",
-    "XGB": "XGB.joblib",
-    "KNN": "KNN.joblib",
-    "StandardScaler": "standard_scaler.joblib",
-}
-# Default parameters config for training each type of model, can be updated.
-DEFAULT_PARAMS = {
-    "Baseline": {},
-    "RF": {
-        "max_features": 6,
-        "n_estimators": 600,
-        "max_depth": 10,
-        "min_samples_split": 4,
-        "min_samples_leaf": 1,
-        "bootstrap": True,
-    },
-    "XGB": {
-        "n_estimators": 800,
-        "learning_rate": 0.02,
-        "max_depth": 7,
-        "subsample": 0.8,
-        "colsample_bytree": 0.9,
-        "gamma": 5,
-    },
-    "KNN": {"n_neighbors": 4, "weights": "distance"},
-}
+### Logging ###
+STDOUT_LOGLEVEL = "INFO"
 
 
-# seed for training
+### Column names in dataset ###
+PROMPT_TEXT_COL = "prompt"
+ASR_TRANSCRIPT_COL = "asr_transcript"
+HUMAN_TRANSCRIPT_COL = "human_transcript"
+HUMAN_WCPM_COL = "human_wcpm"
+DURATION_COL = "scored_duration"
+
+
+### Model general params ###
+PREPROCESSING_STEPS = dict(
+    to_lowercase=True,
+    remove_punctuation=True,
+    convert_num2words=True,
+    asr_string_recomposition=False,
+)
+
 SEED = 105
+BASELINE_MODEL_PREDICTION_COL = "correct_words_pm"
+INLINE_VALIDATION_BEFORE_GS = True
+
+
+### Default models ###
+DEFAULT_MODEL_ESTIMATOR = XGBRegressor
+DEFAULT_MODEL_SCALER = StandardScaler
+DEFAULT_MODEL_FILEPATHS = {
+    "xgboost": os.path.join(ROOT_PATH, "models/default_xgb.pkl"),
+    "test": os.path.join(ROOT_PATH, "models/model_test.pkl"),
+}
+
+DEFAULT_PARAMS = {"xgboost": {}}
