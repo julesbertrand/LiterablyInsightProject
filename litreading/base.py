@@ -5,6 +5,7 @@ bosth Grader and ModelTrainer, and a function to load a model from a file.
 import numpy.typing as npt
 from typing import Union
 
+import abc
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -40,7 +41,17 @@ class Dataset:
         )
 
 
-class BaseModel:
+class BaseModel(abc.ABC):
+    """An class to define parameters and functions common to the Trainer and the Grader classes
+
+    Attributes:
+        _preprocessor (LCSPreprocessor): Preprocessor instanciated with preprocessing steps
+            as defined in config_
+        _model (sklearn.Pipeline): Pipeline with scaler and estimator. Can be accessed with
+            the model property.
+        _baseline_mode (bool): baseline mode actiavted or not. If ativated _model is None
+    """
+
     _preprocessor = LCSPreprocessor(**PREPROCESSING_STEPS)
 
     def __init__(self, baseline_mode: bool = False) -> None:

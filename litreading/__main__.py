@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 import typer
 from loguru import logger
+from streamlit import cli as stcli
 
 from litreading.config import DEFAULT_MODEL_SCALER
 from litreading.grader import Grader
@@ -14,14 +15,8 @@ from litreading.trainer import ModelTrainer
 from litreading.utils.files import save_to_file
 
 app = typer.Typer()
-state = {"verbose": True}
 
 logger.configure(handlers=[{"sink": sys.stderr, "level": "INFO"}])
-
-
-@app.command()
-def hello_world(name: str):
-    typer.echo(f"Hello {name}")
 
 
 @app.command()
@@ -83,6 +78,7 @@ def train(
         readable=False,
         resolve_path=True,
     ),
+    verbose: bool = typer.Option(True, "--verbose", "-v"),
 ):
     if parameters is not None:
         parameters = json.load(parameters)
@@ -94,7 +90,7 @@ def train(
         estimator=estimator,
         scaler=DEFAULT_MODEL_SCALER(),
         baseline_mode=baseline_mode,
-        verbose=True,
+        verbose=verbose,
     )
 
     df = pd.read_csv(dataset_filepath)
@@ -130,6 +126,7 @@ def gridsearch(
         readable=False,
         resolve_path=True,
     ),
+    verbose: bool = typer.Option(True, "--verbose", "-v"),
 ):
     if parameters_grid is not None:
         parameters_grid = json.load(parameters_grid)
@@ -141,7 +138,7 @@ def gridsearch(
         estimator=estimator,
         scaler=DEFAULT_MODEL_SCALER(),
         baseline_mode=False,
-        verbose=True,
+        verbose=verbose,
     )
 
     df = pd.read_csv(dataset_filepath)
@@ -154,10 +151,10 @@ def gridsearch(
         m.save_model(output_dirpath / f"model_gs_{estimator}.pkl")
 
 
-@app.callback()
-def verbose(verbose: bool = typer.Option(True, "--verbose / --no-verbose", "-v / -nv")):
-    print(f"app verbose is {verbose}")
-    state["verbose"] = verbose
+@app.command()
+def streamlit():
+    sys.argv = ["streamlit", "run", "apps/app.py"]
+    sys.exit(stcli.main())
 
 
 if __name__ == "__main__":
