@@ -4,8 +4,8 @@ This is a consulting project done as part of Insight Artificial Intelligence Fel
 
 ![GitHub](https://img.shields.io/github/license/julesbertrand/litreading-insight-project)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://pypi.org/project/black/)
-![CI](https://github.com/julesbertrand/litreading-insight-project/actions/workflows/ci.yml/badge.svg)
-[![codecov](https://codecov.io/gh/julesbertrand/litreading-insight-project/branch/develop/graph/badge.svg?token=ULW5SHSJSC)](https://codecov.io/gh/julesbertrand/litreading-insight-project)
+![CI](https://github.com/julesbertrand/litreading-insight-project/actions/workflows/ci.yml/badge.svg?branch=main)
+[![codecov](https://codecov.io/gh/julesbertrand/litreading-insight-project/branch/main/graph/badge.svg?token=ULW5SHSJSC)](https://codecov.io/gh/julesbertrand/litreading-insight-project)
 
 ---
 
