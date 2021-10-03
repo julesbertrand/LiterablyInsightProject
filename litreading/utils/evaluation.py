@@ -51,8 +51,8 @@ def get_evaluation_metrics(
     eval_metrics = {
         "ME": np.mean(y_true - y_pred),
         "MAE": metrics.mean_absolute_error(y_true, y_pred),
-        "MAPE": metrics.mean_absolute_percentage_error(y_true, y_pred),
-        "SMAPE": smape_loss(y_true, y_pred),
+        "MAPE": 100 * metrics.mean_absolute_percentage_error(y_true, y_pred),
+        "SMAPE": 100 * smape_loss(y_true, y_pred),
         "RMSE": np.sqrt(metrics.mean_squared_error(y_true, y_pred)),
         "R2": metrics.r2_score(y_true, y_pred),
     }

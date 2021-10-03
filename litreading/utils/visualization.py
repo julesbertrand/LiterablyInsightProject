@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import seaborn as sns
+from loguru import logger
 
 from sklearn.base import BaseEstimator
 
@@ -72,12 +73,20 @@ def plot_feature_importance(
             )
 
     feat_imp = pd.DataFrame(
-        {
-            "feature": X_train.columns,
-            "importance": estimator.feature_importances_,
-            "std": np.std([tree.feature_importances_ for tree in estimator.estimators_], axis=0),
-        }
+        {"feature": X_train.columns, "importance": estimator.feature_importances_}
     )
+
+    try:
+        feat_imp["std"] = np.std(
+            [tree.feature_importances_ for tree in estimator.estimators_], axis=0
+        )
+    except AttributeError:
+        if plot_error_bars:
+            logger.warning(
+                f"cannot plot error bars for this estimator: {estimator.__class__.__name__}"
+            )
+            plot_error_bars = False
+
     feat_imp = feat_imp.sort_values(by="importance", ascending=False).iloc[:top_n]
     feat_imp = feat_imp.set_index("feature", drop=True)
     feat_imp = feat_imp.sort_values(by="importance", ascending=True)
@@ -89,7 +98,7 @@ def plot_feature_importance(
         plot_kwargs["xerr"] = "std"
         fig = feat_imp.plot.barh(**plot_kwargs)
     else:
-        fig = feat_imp.drop(columns=["std"]).plot.barh(**plot_kwargs)
+        fig = feat_imp.plot.barh(**plot_kwargs)
     plt.xlabel("Feature Importance")
 
     if print_table is True:

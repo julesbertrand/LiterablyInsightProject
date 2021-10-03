@@ -137,6 +137,16 @@ Please refer to the [examples jupyter notebook](https://github.com/julesbertrand
 
 ## Algorithm and Performance so far
 
+The model and data pipeline can be visualized as follows:
+
+![](resources/model_pipeline_final.png?raw=true)
+
+The algorithm is using Difflib to make a word to word comparison between the original text and teh ASR transcript. If the original text was not fully read, then the end is deleted to ensure a fair count. Then features are computed by counting the number of words correct (same word, same place), replaced(wrong word, same place), added, or removed, as well as the number of words in each transcript and the mean and standard deviation in word length for each text. An XGBoost finetuned model is then run on this features to have an estimation of the WCPM of the students.
+
+Currently with XGBoost, the MAE is 2.86% on with 3000 datapoint used for training/test. The RMSE is 3.9, to compare to an average wcpm of around 120. Here is the distribution of errors for XGB, and a scatter plot with y=estimations and x=labels=human_wcpm.
+![](resources/scatter_xgb.png?raw=true)
+
+We can see that the etsimations are very good, however more data is needed to train an accurate algorithm for big values of wcpm.
 
 ## Repo Directory structure
 
